@@ -1,3 +1,59 @@
-build
-mx.scratch
-!.settings
+# Build directories
+build/
+cmake-build-*/
+.cache/
+mx.scratch/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Clangd
+.clangd/
+
+# Debug files
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.su
+*.d
+*.o
+
+# STM32CubeIDE
+!.settings/
+Debug/
+Release/
+
+# Eclipse
+.cproject
+.project
+
+# Backup files
+*.bak
+
+# Log files
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporary files
+*.tmp
+*.temp
