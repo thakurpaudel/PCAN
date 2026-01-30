@@ -8,7 +8,8 @@
 #include <assert.h>
 #include <stdio.h>
 
-static struct t_class_data pcanpro_data = {0};
+static struct t_class_data pcanpro_data
+    __attribute__((section(".usb_buffers"))) = {0};
 
 struct t_pcanpro_description {
   USB_CONFIGURATION_DESCRIPTOR con0;
@@ -213,6 +214,7 @@ __ALIGN_BEGIN static struct t_pcanpro_description pcanpro_dev
 };
 
 static uint8_t device_init(USBD_HandleTypeDef *pdev, uint8_t cfgidx) {
+  printf("USB: device_init(cfgidx=%d)\r\n", cfgidx);
   USB_ENDPOINT_DESCRIPTOR *p_ep = &pcanpro_dev.ep1_i0;
 
   for (int i = 0; i < pcanpro_dev.if0.bNumEndpoints; i++) {
@@ -250,6 +252,7 @@ static uint8_t device_init(USBD_HandleTypeDef *pdev, uint8_t cfgidx) {
 }
 
 static uint8_t device_deinit(USBD_HandleTypeDef *pdev, uint8_t cfgidx) {
+  printf("USB: device_deinit(cfgidx=%d)\r\n", cfgidx);
   USB_ENDPOINT_DESCRIPTOR const *p_ep = &pcanpro_dev.ep1_i0;
 
   for (int i = 0; i < pcanpro_dev.if0.bNumEndpoints; i++) {
@@ -274,6 +277,9 @@ static uint8_t device_deinit(USBD_HandleTypeDef *pdev, uint8_t cfgidx) {
 
 static uint8_t device_setup(USBD_HandleTypeDef *pdev,
                             USBD_SetupReqTypedef *req) {
+  printf(
+      "USB: Setup Req Type=0x%02X BReq=0x%02X Val=0x%04X Idx=0x%04X Len=%d\r\n",
+      req->bmRequest, req->bRequest, req->wValue, req->wIndex, req->wLength);
   switch (req->bmRequest & USB_REQ_TYPE_MASK) {
   case USB_REQ_TYPE_VENDOR:
     return pcan_protocol_device_setup(pdev, req);
@@ -288,11 +294,13 @@ static uint8_t device_setup(USBD_HandleTypeDef *pdev,
 }
 
 static uint8_t device_ep0_rx_ready(USBD_HandleTypeDef *pdev) {
+  printf("USB: EP0 Rx Ready\r\n");
   pcan_ep0_receive();
   return USBD_OK;
 }
 
 static uint8_t device_data_in(USBD_HandleTypeDef *pdev, uint8_t epnum) {
+  // printf("USB: Data IN (TX Complete) EP=0x%02X\r\n", epnum);
   struct t_class_data *p_data = (void *)pdev->pClassData;
 
   if (pdev->pClassData == 0)
@@ -326,6 +334,11 @@ static uint8_t device_data_out(USBD_HandleTypeDef *pdev, uint8_t epnum) {
     return USBD_FAIL;
 
   size = USBD_LL_GetRxDataSize(pdev, epnum);
+
+  // Debug Log: Confirm data reception
+  if (size > 0) {
+    printf("USB RX: EP=0x%02X Size=%d\r\n", epnum, size);
+  }
 
   if (epnum == PCAN_USB_EP_CMDOUT) {
     pcan_protocol_process_data(epnum, pcanpro_data.cmd_ep_buffer, size);
@@ -368,6 +381,7 @@ uint8_t *device_get_device_qualifier(uint16_t *length) {
 }
 
 static uint8_t sof_handler(struct _USBD_HandleTypeDef *pdev) {
+  // printf("USB: SOF\r\n"); // Too verbose
   uint32_t USBx_BASE = (uint32_t)(((PCD_HandleTypeDef *)pdev->pData)->Instance);
   (void)USBx_BASE;
 

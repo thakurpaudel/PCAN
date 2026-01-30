@@ -154,6 +154,15 @@ SECTIONS
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
+  /* USB Buffers in AXI SRAM (RAM_D1) for DMA access */
+  .usb_buffers :
+  {
+    . = ALIGN(4);
+    *(.usb_buffers)
+    *(.usb_buffers*)
+    . = ALIGN(4);
+  } >RAM AT> FLASH
+
   /* Initialized data sections goes into RAM, load LMA copy after code */
   .data :
   {

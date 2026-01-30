@@ -64,10 +64,12 @@ struct pcan_usbpro_msg {
 };
 
 #define PCAN_USB_DATA_BUFFER_SIZE 1024
-static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE];
-static uint8_t temp_resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE];
-static uint8_t drv_load_packet[16];
-static struct pcan_usbpro_msg resp[2];
+static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE]
+    __attribute__((section(".usb_buffers")));
+static uint8_t temp_resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE]
+    __attribute__((section(".usb_buffers")));
+static uint8_t drv_load_packet[16] __attribute__((section(".usb_buffers")));
+static struct pcan_usbpro_msg resp[2] __attribute__((section(".usb_buffers")));
 
 static struct t_m2h_fsm resp_fsm[2] = {
     [0] =
@@ -89,89 +91,98 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
                                    USBD_SetupReqTypedef *req) {
   switch (req->bRequest) {
   case USB_VENDOR_REQUEST_INFO:
+    printf("PCAN: Vendor Info Request Val=0x%04X\r\n", req->wValue);
     switch (req->wValue) {
     case USB_VENDOR_REQUEST_wVALUE_INFO_BOOTLOADER: {
-      static struct pcan_usbpro_bootloader_info bi = {
-          .ctrl_type = BOOTLOADER_INFO_STRUCT_TYPE,
-          .version[0] = 0,
-          .version[1] = 0,
-          .version[2] = 0,
-          .version[3] = 0,
-          .day = 0,
-          .month = 0,
-          .year = 0,
-          .dummy = 0,
-          .serial_num_high = 200030,
-          .serial_num_low = 1,
-          .hw_type = 0,
-          .hw_rev = 0,
-      };
+      static struct pcan_usbpro_bootloader_info bi
+          __attribute__((section(".usb_buffers"))) = {
+              .ctrl_type = BOOTLOADER_INFO_STRUCT_TYPE,
+              .version[0] = 0,
+              .version[1] = 0,
+              .version[2] = 0,
+              .version[3] = 0,
+              .day = 0,
+              .month = 0,
+              .year = 0,
+              .dummy = 0,
+              .serial_num_high = 200030,
+              .serial_num_low = 1,
+              .hw_type = 0,
+              .hw_rev = 0,
+          };
 
       return USBD_CtlSendData(pdev, (void *)&bi,
                               sizeof(struct pcan_usbpro_bootloader_info));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_FIRMWARE: {
-      static struct pcan_usbpro_ext_firmware_info fwi = {
-          .ctrl_type = EXT_FIRMWARE_INFO_STRUCT_TYPE,
-          .version[0] = 1,
-          .version[1] = 3,
-          .version[2] = 3,
-          .version[3] = 0,
-          .day = 0,
-          .month = 0,
-          .year = 0,
-          .dummy = 0,
-          .fw_type = 0,
-      };
+      static struct pcan_usbpro_ext_firmware_info fwi
+          __attribute__((section(".usb_buffers"))) = {
+              .ctrl_type = EXT_FIRMWARE_INFO_STRUCT_TYPE,
+              .version[0] = 1,
+              .version[1] = 3,
+              .version[2] = 3,
+              .version[3] = 0,
+              .day = 0,
+              .month = 0,
+              .year = 0,
+              .dummy = 0,
+              .fw_type = 0,
+          };
 
       return USBD_CtlSendData(pdev, (void *)&fwi,
                               sizeof(struct pcan_usbpro_ext_firmware_info));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_uC_CHIPID: {
-      static struct pcan_usbpro_uc_chipid uc_chid = {
-          .ctrl_type = uC_CHIPID_STRUCT_TYPE,
-          .chip_id = 0,
-      };
+      static struct pcan_usbpro_uc_chipid uc_chid
+          __attribute__((section(".usb_buffers"))) = {
+              .ctrl_type = uC_CHIPID_STRUCT_TYPE,
+              .chip_id = 0,
+          };
 
       return USBD_CtlSendData(pdev, (void *)&uc_chid,
                               sizeof(struct pcan_usbpro_uc_chipid));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_USB_CHIPID: {
-      static struct pcan_usbpro_usb_chipid usb_chid = {
-          .ctrl_type = USB_CHIPID_STRUCT_TYPE,
-          .chip_id = 0,
-      };
+      static struct pcan_usbpro_usb_chipid usb_chid
+          __attribute__((section(".usb_buffers"))) = {
+              .ctrl_type = USB_CHIPID_STRUCT_TYPE,
+              .chip_id = 0,
+          };
 
       return USBD_CtlSendData(pdev, (void *)&usb_chid,
                               sizeof(struct pcan_usbpro_usb_chipid));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_DEVICENR: {
-      static struct pcan_usbpro_device_nr device_nr = {
-          .ctrl_type = DEVICE_NR_STRUCT_TYPE,
-          .device_nr = 0xFFFFFFFF,
-      };
+      static struct pcan_usbpro_device_nr device_nr
+          __attribute__((section(".usb_buffers"))) = {
+              .ctrl_type = DEVICE_NR_STRUCT_TYPE,
+              .device_nr = 0xFFFFFFFF,
+          };
 
       return USBD_CtlSendData(pdev, (void *)&device_nr,
                               sizeof(struct pcan_usbpro_device_nr));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_CPLD: {
-      static struct pcan_usbpro_cpld_info cpldi = {
-          .ctrl_type = CPLD_INFO_STRUCT_TYPE,
-          .cpld_nr = 0,
-      };
+      static struct pcan_usbpro_cpld_info cpldi
+          __attribute__((section(".usb_buffers"))) = {
+              .ctrl_type = CPLD_INFO_STRUCT_TYPE,
+              .cpld_nr = 0,
+          };
 
       return USBD_CtlSendData(pdev, (void *)&cpldi,
                               sizeof(struct pcan_usbpro_cpld_info));
     }
 
     case USB_VENDOR_REQUEST_wVALUE_INFO_MODE: {
-      static struct pcan_usbpro_info_mode info = {0};
+      static struct pcan_usbpro_info_mode info
+          __attribute__((section(".usb_buffers"))) = {0};
 
       return USBD_CtlSendData(pdev, (void *)&info,
                               sizeof(struct pcan_usbpro_info_mode));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_TIMEMODE: {
-      static struct pcan_usbpro_time_mode info = {0};
+      static struct pcan_usbpro_time_mode info
+          __attribute__((section(".usb_buffers"))) = {0};
 
       return USBD_CtlSendData(pdev, (void *)&info,
                               sizeof(struct pcan_usbpro_time_mode));
@@ -182,6 +193,7 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
     }
     break;
   case USB_VENDOR_REQUEST_FKT:
+    printf("PCAN: Vendor FKT Request Val=0x%04X\r\n", req->wValue);
     switch (req->wValue) {
     case USB_VENDOR_REQUEST_wVALUE_SETFKT_BOOT:
       break;
@@ -213,6 +225,7 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
 }
 
 void pcan_ep0_receive(void) {
+  printf("PCAN: EP0 Receive (DrvLoadPacket[0]=%d)\r\n", drv_load_packet[0]);
   /* CAN */
   if (drv_load_packet[0] == 0) {
     pcan_flush_ep(PCAN_USB_EP_MSGIN_CH1);
