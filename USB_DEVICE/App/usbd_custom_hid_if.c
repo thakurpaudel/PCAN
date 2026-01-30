@@ -24,6 +24,7 @@
 /* USER CODE BEGIN INCLUDE */
 #include "pcanpro_protocol.h"
 #include "pcanpro_usbd.h"
+#include <stdio.h>
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -197,6 +198,7 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
       (USBD_CUSTOM_HID_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
   if (hhid != NULL) {
+    // printf("USB RX: %d bytes\r\n", USBD_CUSTOMHID_OUTREPORT_BUF_SIZE);
     // Process PCAN protocol data (endpoint 0 for commands/data)
     pcan_protocol_process_data(0, hhid->Report_buf,
                                USBD_CUSTOMHID_OUTREPORT_BUF_SIZE);

@@ -4,6 +4,7 @@
 #include "pcanpro_timestamp.h"
 #include "pcanpro_variant.h"
 #include <assert.h>
+#include <stdio.h>
 
 // Use external FDCAN handles from CubeMX-generated fdcan.c
 extern FDCAN_HandleTypeDef hfdcan1;
@@ -209,6 +210,7 @@ static void pcan_can_flush_tx(int bus) {
 
   // Update fifo index
   p_dev->tx_tail = (p_dev->tx_tail + 1) & (CAN_TX_FIFO_SIZE - 1);
+  // printf("CAN%d TX OK\r\n", bus + 1);
 }
 
 int pcan_can_write(int bus, struct t_can_msg *p_msg) {
@@ -667,9 +669,11 @@ static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
   if (p_dev->rx_isr) {
     if (p_dev->rx_isr(bus, &msg) < 0) {
       ++p_dev->rx_ovfs;
+      printf("CAN%d RX OVF\r\n", bus + 1);
       return;
     }
   }
+  // printf("CAN%d RX: ID=0x%lX Len=%d\r\n", bus + 1, msg.id, msg.size);
   ++p_dev->rx_msgs;
 }
 
@@ -710,6 +714,7 @@ void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef *hcan,
   if (can_dev_array[bus].err_handler) {
     can_dev_array[bus].err_handler(bus, hcan->Instance->PSR);
   }
+  printf("CAN%d ERR: Status=0x%lX\r\n", bus + 1, ErrorStatusITs);
 }
 
 /* ISR Handlers */

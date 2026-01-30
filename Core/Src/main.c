@@ -63,6 +63,14 @@ static void MPU_Config(void);
 #include "pcanpro_led.h"
 #include "pcanpro_protocol.h"
 #include "pcanpro_timestamp.h"
+#include <stdio.h>
+
+extern UART_HandleTypeDef huart1;
+
+int __io_putchar(int ch) {
+  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 10);
+  return ch;
+}
 
 /* USER CODE END 0 */
 
@@ -113,7 +121,12 @@ int main(void) {
   MX_UART4_Init();
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+
+  printf("\r\n=== PCAN-USB Pro FD Emulator ===\r\n");
+  printf("System Clock: %lu Hz\r\n", (unsigned long)HAL_RCC_GetSysClockFreq());
+  printf("Initializing PCAN components...\r\n");
 
   // Initialize PCAN components
   pcan_led_init();
@@ -125,7 +138,7 @@ int main(void) {
   pcan_can_init_fd(CAN_BUS_2, 500000, 2000000);
 
   /* USER CODE END 2 */
-
+ printf("Now entering on the maina..\r\n");
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {

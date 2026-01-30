@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #define CAN_CHANNEL_MAX (2)
@@ -752,20 +753,26 @@ void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
     if (rec_size < 0 || size < (rec_size + 4))
       return; /* bad data */
 
+    // printf("PCAN RX: Type=0x%02X\r\n", prec->data_type); // Verbose log
     switch (prec->data_type) {
     default:
+      printf("PCAN Unknown Cmd: 0x%02X\r\n", prec->data_type);
       assert(0);
       break;
     /* windows only */
     case DATA_TYPE_USB2CAN_STRUCT_FKT_SETWARNINGLIMIT:
+      printf("CMD: Set Warning Limit\r\n");
       break;
     case DATA_TYPE_USB2CAN_STRUCT_FKT_SETFILTERMODE:
+      printf("CMD: Set Filter Mode\r\n");
       break;
     case DATA_TYPE_USB2CAN_STRUCT_FKT_SETERRORFRAME:
+      printf("CMD: Set Error Frame\r\n");
       break;
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_8:
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_4:
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_0:
+      // printf("CMD: TX Frame (Len=%d)\r\n", prec->canmsg_tx.len & 0x0F);
       if ((prec->canmsg_tx.len >> 4) < CAN_CHANNEL_MAX) {
         (void)pcan_protocol_tx_frame(&prec->canmsg_tx);
       }
