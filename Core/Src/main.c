@@ -138,7 +138,7 @@ int main(void) {
   pcan_can_init_fd(CAN_BUS_2, 500000, 2000000);
 
   /* USER CODE END 2 */
- printf("Now entering on the maina..\r\n");
+ printf("Now entering on the main..\r\n");
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {

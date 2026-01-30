@@ -41,8 +41,10 @@ uint16_t pcan_usb_frame_number(void) {
   return (USBx_DEVICE->DSTS >> 8u) & 0x3FFFu;
 }
 
+extern USBD_HandleTypeDef hUsbDeviceFS;
+
 int pcan_flush_ep(uint8_t ep) {
-  USBD_HandleTypeDef *pdev = &h_usb_device;
+  USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
   struct t_class_data *p_data = (void *)pdev->pClassData;
 
   p_data->ep_tx_in_use[ep & 0x0F] = 0;
@@ -50,7 +52,7 @@ int pcan_flush_ep(uint8_t ep) {
 }
 
 int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
-  USBD_HandleTypeDef *pdev = &h_usb_device;
+  USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
   struct t_class_data *p_data = (void *)pdev->pClassData;
 
   if (!p_data)
