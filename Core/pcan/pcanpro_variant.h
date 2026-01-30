@@ -13,8 +13,10 @@
 /* LED_1: PC7, LED_2: PE2 */
 /* We'll use these for CAN activity indication */
 /* LED_1: PC7 (Status), LED_2: PE2 (Activity) */
-#define LED_STAT_PORT GPIOC
-#define LED_STAT_PIN GPIO_PIN_7 // LED_1 (PC7)
+
+/* Mapped in main.h now */
+// #define LED_STAT_PORT GPIOC
+// #define LED_STAT_PIN GPIO_PIN_7 // LED_1 (PC7)
 
 // Use LED_2 (PE2) for all activity for now, or split if needed
 // User requested "lead_1 and lead_2 as status"
@@ -23,17 +25,17 @@
 // LED_1 = Status / Heartbeat
 // LED_2 = CAN Activity (both channels)
 
-#define LED_CH0_TX_PORT GPIOE
-#define LED_CH0_TX_PIN GPIO_PIN_2 // LED_2 (PE2)
+// #define LED_CH0_TX_PORT GPIOE
+// #define LED_CH0_TX_PIN GPIO_PIN_2 // LED_2 (PE2)
 
-#define LED_CH0_RX_PORT GPIOE
-#define LED_CH0_RX_PIN GPIO_PIN_2 // LED_2 (PE2)
+// #define LED_CH0_RX_PORT GPIOE
+// #define LED_CH0_RX_PIN GPIO_PIN_2 // LED_2 (PE2)
 
-#define LED_CH1_TX_PORT GPIOE
-#define LED_CH1_TX_PIN GPIO_PIN_2 // LED_2 (PE2)
+// #define LED_CH1_TX_PORT GPIOE
+// #define LED_CH1_TX_PIN GPIO_PIN_2 // LED_2 (PE2)
 
-#define LED_CH1_RX_PORT GPIOE
-#define LED_CH1_RX_PIN GPIO_PIN_2 // LED_2 (PE2)
+// #define LED_CH1_RX_PORT GPIOE
+// #define LED_CH1_RX_PIN GPIO_PIN_2 // LED_2 (PE2)
 
 /* LED polarity (active high) */
 #define LED_ON GPIO_PIN_SET

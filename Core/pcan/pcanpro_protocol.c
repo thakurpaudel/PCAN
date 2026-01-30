@@ -51,6 +51,87 @@ static struct {
     .can[1] = {.channel_nr = 0xFFFFFFFF},
 };
 
+#define PCAN_USBFD_TYPE_EXT 2
+
+struct pcan_ufd_fw_info {
+  uint16_t size_of;
+  uint16_t type;
+  uint8_t hw_type;
+  uint8_t bl_version[3];
+  uint8_t hw_version;
+  uint8_t fw_version[3];
+  uint64_t dev_id;
+  uint32_t ser_no;
+  uint32_t flags;
+  uint8_t cmd_out_ep;
+  uint8_t cmd_in_ep;
+  uint16_t data_out_ep;
+  uint8_t data_in_ep;
+  uint8_t dummy[3];
+} __attribute__((packed));
+
+/* Global Info Templates in normal memory */
+static struct pcan_usbpro_bootloader_info bi_info
+    __attribute__((aligned(4))) = {
+        .ctrl_type = BOOTLOADER_INFO_STRUCT_TYPE,
+        .version[0] = 0,
+        .version[1] = 0,
+        .version[2] = 0,
+        .version[3] = 0,
+        .day = 0,
+        .month = 0,
+        .year = 0,
+        .dummy = 0,
+        .serial_num_high = 200030,
+        .serial_num_low = 1,
+        .hw_type = 0,
+        .hw_rev = 0,
+};
+
+static struct pcan_ufd_fw_info fw_info __attribute__((aligned(4))) = {
+    .size_of = 36,
+    .type = PCAN_USBFD_TYPE_EXT,
+    .hw_type = 0,
+    .bl_version = {0, 0, 0},
+    .hw_version = 1,
+    .fw_version = {1, 3, 3},
+    .dev_id = 0,
+    .ser_no = 12345,
+    .flags = 0,
+    .cmd_out_ep = 0x03,
+    .cmd_in_ep = 0x83,
+    .data_out_ep = 0x01 | (0x02 << 8), // EP1 and EP2
+    .data_in_ep = 0x81,                // Usually common for both channels?
+    .dummy = {0, 0, 0},
+};
+
+static struct pcan_usbpro_uc_chipid uc_chid_info __attribute__((aligned(4))) = {
+    .ctrl_type = uC_CHIPID_STRUCT_TYPE,
+    .chip_id = 0,
+};
+
+static struct pcan_usbpro_usb_chipid usb_chid_info
+    __attribute__((aligned(4))) = {
+        .ctrl_type = USB_CHIPID_STRUCT_TYPE,
+        .chip_id = 0,
+};
+
+static struct pcan_usbpro_device_nr dev_nr_info __attribute__((aligned(4))) = {
+    .ctrl_type = DEVICE_NR_STRUCT_TYPE,
+    .device_nr = 0xFFFFFFFF,
+};
+
+static struct pcan_usbpro_cpld_info cpld_info __attribute__((aligned(4))) = {
+    .ctrl_type = CPLD_INFO_STRUCT_TYPE,
+    .cpld_nr = 0,
+};
+
+static struct pcan_usbpro_info_mode info_mode_data
+    __attribute__((aligned(4))) = {.ctrl_type = 0};
+
+static struct pcan_usbpro_time_mode time_mode_info
+    __attribute__((aligned(4))) = {.ctrl_type = 0};
+
 /* internal structure used to handle messages sent to bulk urb */
 struct pcan_usbpro_msg {
   uint8_t *rec_ptr;
@@ -64,12 +145,10 @@ struct pcan_usbpro_msg {
 };
 
 #define PCAN_USB_DATA_BUFFER_SIZE 1024
-static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE]
-    __attribute__((section(".usb_buffers")));
-static uint8_t temp_resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE]
-    __attribute__((section(".usb_buffers")));
-static uint8_t drv_load_packet[16] __attribute__((section(".usb_buffers")));
-static struct pcan_usbpro_msg resp[2] __attribute__((section(".usb_buffers")));
+static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE];
+static uint8_t temp_resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE];
+static uint8_t drv_load_packet[16];
+static struct pcan_usbpro_msg resp[2];
 
 static struct t_m2h_fsm resp_fsm[2] = {
     [0] =
@@ -94,102 +173,41 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
     printf("PCAN: Vendor Info Request Val=0x%04X\r\n", req->wValue);
     switch (req->wValue) {
     case USB_VENDOR_REQUEST_wVALUE_INFO_BOOTLOADER: {
-      static struct pcan_usbpro_bootloader_info bi
-          __attribute__((section(".usb_buffers"))) = {
-              .ctrl_type = BOOTLOADER_INFO_STRUCT_TYPE,
-              .version[0] = 0,
-              .version[1] = 0,
-              .version[2] = 0,
-              .version[3] = 0,
-              .day = 0,
-              .month = 0,
-              .year = 0,
-              .dummy = 0,
-              .serial_num_high = 200030,
-              .serial_num_low = 1,
-              .hw_type = 0,
-              .hw_rev = 0,
-          };
-
-      return USBD_CtlSendData(pdev, (void *)&bi,
+      return USBD_CtlSendData(pdev, (void *)&bi_info,
                               sizeof(struct pcan_usbpro_bootloader_info));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_FIRMWARE: {
-      static struct pcan_usbpro_ext_firmware_info fwi
-          __attribute__((section(".usb_buffers"))) = {
-              .ctrl_type = EXT_FIRMWARE_INFO_STRUCT_TYPE,
-              .version[0] = 1,
-              .version[1] = 3,
-              .version[2] = 3,
-              .version[3] = 0,
-              .day = 0,
-              .month = 0,
-              .year = 0,
-              .dummy = 0,
-              .fw_type = 0,
-          };
-
-      return USBD_CtlSendData(pdev, (void *)&fwi,
-                              sizeof(struct pcan_usbpro_ext_firmware_info));
+      return USBD_CtlSendData(pdev, (void *)&fw_info,
+                              sizeof(struct pcan_ufd_fw_info));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_uC_CHIPID: {
-      static struct pcan_usbpro_uc_chipid uc_chid
-          __attribute__((section(".usb_buffers"))) = {
-              .ctrl_type = uC_CHIPID_STRUCT_TYPE,
-              .chip_id = 0,
-          };
-
-      return USBD_CtlSendData(pdev, (void *)&uc_chid,
+      return USBD_CtlSendData(pdev, (void *)&uc_chid_info,
                               sizeof(struct pcan_usbpro_uc_chipid));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_USB_CHIPID: {
-      static struct pcan_usbpro_usb_chipid usb_chid
-          __attribute__((section(".usb_buffers"))) = {
-              .ctrl_type = USB_CHIPID_STRUCT_TYPE,
-              .chip_id = 0,
-          };
-
-      return USBD_CtlSendData(pdev, (void *)&usb_chid,
+      return USBD_CtlSendData(pdev, (void *)&usb_chid_info,
                               sizeof(struct pcan_usbpro_usb_chipid));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_DEVICENR: {
-      static struct pcan_usbpro_device_nr device_nr
-          __attribute__((section(".usb_buffers"))) = {
-              .ctrl_type = DEVICE_NR_STRUCT_TYPE,
-              .device_nr = 0xFFFFFFFF,
-          };
-
-      return USBD_CtlSendData(pdev, (void *)&device_nr,
+      return USBD_CtlSendData(pdev, (void *)&dev_nr_info,
                               sizeof(struct pcan_usbpro_device_nr));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_CPLD: {
-      static struct pcan_usbpro_cpld_info cpldi
-          __attribute__((section(".usb_buffers"))) = {
-              .ctrl_type = CPLD_INFO_STRUCT_TYPE,
-              .cpld_nr = 0,
-          };
-
-      return USBD_CtlSendData(pdev, (void *)&cpldi,
+      return USBD_CtlSendData(pdev, (void *)&cpld_info,
                               sizeof(struct pcan_usbpro_cpld_info));
     }
 
     case USB_VENDOR_REQUEST_wVALUE_INFO_MODE: {
-      static struct pcan_usbpro_info_mode info
-          __attribute__((section(".usb_buffers"))) = {0};
-
-      return USBD_CtlSendData(pdev, (void *)&info,
+      return USBD_CtlSendData(pdev, (void *)&info_mode_data,
                               sizeof(struct pcan_usbpro_info_mode));
     }
     case USB_VENDOR_REQUEST_wVALUE_INFO_TIMEMODE: {
-      static struct pcan_usbpro_time_mode info
-          __attribute__((section(".usb_buffers"))) = {0};
-
-      return USBD_CtlSendData(pdev, (void *)&info,
+      return USBD_CtlSendData(pdev, (void *)&time_mode_info,
                               sizeof(struct pcan_usbpro_time_mode));
     }
     default:
-      assert(0);
-      break;
+      // assert(0);
+      return USBD_FAIL;
     }
     break;
   case USB_VENDOR_REQUEST_FKT:
@@ -894,6 +912,8 @@ void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
 }
 
 void pcan_protocol_init(void) {
+  printf("PCAN: Protocol Init. FW Version: %d.%d.%d\r\n", fw_info.fw_version[0],
+         fw_info.fw_version[1], fw_info.fw_version[2]);
   pcan_can_init_ex(CAN_BUS_1, 500000);
   pcan_can_set_filter_mask(CAN_BUS_1, 0, 0, 0, 0);
   pcan_can_init_ex(CAN_BUS_2, 500000);

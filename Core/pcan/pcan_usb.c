@@ -4,44 +4,50 @@
 #include "usbd_desc.h"
 #include <assert.h>
 
-USBD_HandleTypeDef h_usb_device;
-extern PCD_HandleTypeDef hpcd_usb;
+extern USBD_HandleTypeDef hUsbDeviceFS;
+extern USBD_DescriptorsTypeDef FS_Desc;
+// extern PCD_HandleTypeDef hpcd_usb; // Using default CubeMX handle if
+// available
 extern void Error_Handler(void);
 
 #ifndef USB_MODULE_ID
-#define USB_MODULE_ID DEVICE_HS
+#define USB_MODULE_ID DEVICE_FS
 #endif
 
 void pcan_usb_device_init(void) {
   /* Init Device Library, add supported class and start the library. */
-  if (USBD_Init(&h_usb_device, &usbd_desc, USB_MODULE_ID) != USBD_OK) {
+  if (USBD_Init(&hUsbDeviceFS, &FS_Desc, USB_MODULE_ID) != USBD_OK) {
     Error_Handler();
   }
-  if (USBD_RegisterClass(&h_usb_device, &usbd_pcanpro) != USBD_OK) {
+  if (USBD_RegisterClass(&hUsbDeviceFS, &usbd_pcanpro) != USBD_OK) {
     Error_Handler();
   }
 
-  if (USBD_Stop(&h_usb_device) != USBD_OK) {
+  /* Note: USBD_Stop/Start sequence typically used to force re-enumeration */
+  if (USBD_Stop(&hUsbDeviceFS) != USBD_OK) {
     Error_Handler();
   }
 
   HAL_Delay(1000);
 
-  if (USBD_Start(&h_usb_device) != USBD_OK) {
+  if (USBD_Start(&hUsbDeviceFS) != USBD_OK) {
     Error_Handler();
   }
 }
 
-void pcan_usb_device_poll(void) { HAL_PCD_IRQHandler(&hpcd_usb); }
+// Polling usually logic for non-interrupt mode, but we use ISR
+void pcan_usb_device_poll(void) {
+  // HAL_PCD_IRQHandler(&hpcd_usb);
+  // Manual Polling Mode Enabled
+  HAL_PCD_IRQHandler(&hUsbDeviceFS.pData[0]);
+}
 
 uint16_t pcan_usb_frame_number(void) {
   uint32_t USBx_BASE =
-      (uint32_t)(((PCD_HandleTypeDef *)h_usb_device.pData)->Instance);
+      (uint32_t)(((PCD_HandleTypeDef *)hUsbDeviceFS.pData)->Instance);
 
   return (USBx_DEVICE->DSTS >> 8u) & 0x3FFFu;
 }
-
-extern USBD_HandleTypeDef hUsbDeviceFS;
 
 int pcan_flush_ep(uint8_t ep) {
   USBD_HandleTypeDef *pdev = &hUsbDeviceFS;

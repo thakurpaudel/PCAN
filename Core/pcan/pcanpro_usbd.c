@@ -2,14 +2,12 @@
 #include "pcanpro_protocol.h"
 #include "usbd_conf.h"
 #include "usbd_ctlreq.h"
-#include "usbd_customhid.h"
 #include "usbd_helper.h"
 #include "usbd_ioreq.h"
 #include <assert.h>
 #include <stdio.h>
 
-static struct t_class_data pcanpro_data
-    __attribute__((section(".usb_buffers"))) = {0};
+static struct t_class_data pcanpro_data = {0};
 
 struct t_pcanpro_description {
   USB_CONFIGURATION_DESCRIPTOR con0;
@@ -61,7 +59,7 @@ __ALIGN_BEGIN static struct t_pcanpro_description pcanpro_dev
 #if INCLUDE_LIN_INTERFACE
                            .bNumInterfaces = 2,
 #else
-    .bNumInterfaces       = 1,
+            .bNumInterfaces = 1,
 #endif
                            .bConfigurationValue = 1,
                            .iConfiguration = 4,
@@ -78,11 +76,11 @@ __ALIGN_BEGIN static struct t_pcanpro_description pcanpro_dev
 #if (PCAN_PRO) || (PCAN_PRO_FD) || (PCAN_X6)
                            .bNumEndpoints = 6,
 #else
-    .bNumEndpoints        = 4,
+            .bNumEndpoints = 4,
 #endif
-                           .bInterfaceClass = 0,
-                           .bInterfaceSubClass = 0,
-                           .bInterfaceProtocol = 0,
+                           .bInterfaceClass = 0xFF,
+                           .bInterfaceSubClass = 0xFF,
+                           .bInterfaceProtocol = 0xFF,
                            .iInterface = 5,
                        },
                    .ep1_i0 =
@@ -437,15 +435,7 @@ USBD_ClassTypeDef usbd_pcanpro = {
 /* ADDED: Send Data Implementation */
 int pcan_usbd_send_data(USBD_HandleTypeDef *pdev, uint8_t ep, uint8_t *data,
                         uint16_t count) {
-  // USBD_CUSTOM_HID_HandleTypeDef *hhid =
-  // (USBD_CUSTOM_HID_HandleTypeDef*)pdev->pClassData;
   printf("USB TX: EP=0x%02X Len=%d\r\n", ep, count);
-
-  // Map PCAN endpoints to USB HID interface
-  // PCAN uses specific EP addresses, but USBD_CUSTOM_HID_SendReport uses the
-  // configured EP For simplicity, we assume single HID interface for now, or we
-  // should map ep to correct report. BUT: The stack provided (CubeMX HID)
-  // usually expects SendReport which handles EP_IN.
-
-  return USBD_CUSTOM_HID_SendReport(pdev, data, count);
+  // Direct LL Transmit, using USBD_LL_Transmit
+  return USBD_LL_Transmit(pdev, ep, data, count);
 }

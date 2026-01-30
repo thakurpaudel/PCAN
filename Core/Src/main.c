@@ -25,7 +25,6 @@
 #include "usart.h"
 #include "usb_device.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -61,11 +60,15 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#include "pcan_usb.h"
 #include "pcanpro_can.h"
 #include "pcanpro_led.h"
 #include "pcanpro_protocol.h"
 #include "pcanpro_timestamp.h"
 #include <stdio.h>
+#include <string.h>
+
+extern UART_HandleTypeDef huart1;
 
 extern UART_HandleTypeDef huart1;
 
@@ -74,6 +77,19 @@ int __io_putchar(int ch) {
   return ch;
 }
 
+// Wrapper for SystemClock_Config
+void pcan_clock_config(void) { SystemClock_Config(); }
+
+// Wrapper for IO/Peripheral Config
+void pcan_io_config(void) {
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_FDCAN1_Init();
+  MX_FDCAN2_Init();
+  MX_UART4_Init();
+  MX_USART1_UART_Init();
+  MX_TIM2_Init();
+}
 /* USER CODE END 0 */
 
 /**
@@ -81,62 +97,42 @@ int __io_putchar(int ch) {
  * @retval int
  */
 int main(void) {
-
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
-  MPU_Config();
+  // MPU_Config();
 
   /* Enable the CPU Cache */
-
-  /* Enable I-Cache---------------------------------------------------------*/
   SCB_EnableICache();
-
-  /* Enable D-Cache---------------------------------------------------------*/
-  SCB_EnableDCache();
-
-  /* MCU Configuration--------------------------------------------------------*/
+  // SCB_EnableDCache(); // Disabled for USB stability during debug
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick.
    */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+  pcan_clock_config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_FDCAN1_Init();
-  MX_FDCAN2_Init();
-  MX_UART4_Init();
-  MX_USART1_UART_Init();
-  MX_USB_DEVICE_Init();
-  MX_TIM2_Init();
+  pcan_io_config();
+
   /* USER CODE BEGIN 2 */
+  printf("\r\n=== PCAN-USB Pro FD Emulator (Matches Original) ===\r\n");
 
-  printf("\r\n=== PCAN-USB Pro FD Emulator ===\r\n");
-  printf("System Clock: %lu Hz\r\n", (unsigned long)HAL_RCC_GetSysClockFreq());
-  printf("Initializing PCAN components...\r\n");
-
-  // Initialize PCAN components
+  pcan_timestamp_init();
 
   pcan_led_init();
-  pcan_timestamp_init();
+  pcan_led_set_mode(LED_STAT, LED_MODE_BLINK_FAST, 0xFFFFFFFF);
+
   pcan_protocol_init();
-  // pcan_usb_device_init();
+  pcan_usb_device_init();
 
   // Initialize CAN channels with CAN-FD support
-  // 500 kbps nominal bitrate, 2 Mbps data bitrate
   pcan_can_init_fd(CAN_BUS_1, 500000, 2000000);
   pcan_can_init_fd(CAN_BUS_2, 500000, 2000000);
 
@@ -144,15 +140,14 @@ int main(void) {
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1) {
+  for (;;) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-    // Poll PCAN components
-    pcan_can_poll();      // Process CAN TX/RX
-    pcan_protocol_poll(); // Process USB protocol
-    pcan_led_poll();      // Update LED states
+    pcan_usb_device_poll();
+    pcan_can_poll();
+    pcan_protocol_poll();
+    pcan_led_poll();
   }
   /* USER CODE END 3 */
 }
