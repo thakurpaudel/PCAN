@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug STM32H743 (OpenOCD)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "build/Debug/PCAN.elf",
+      "device": "STM32H743ZI",
+      "interface": "swd",
+      "configFiles": [
+        "interface/stlink.cfg",
+        "target/stm32h7x.cfg"
+      ],
+      "gdbPath": "arm-none-eabi-gdb",
+      "runToEntryPoint": "main",
+      "preLaunchCommands": [
+        "set mem inaccessible-by-default off",
+        "set remotetimeout 20"
+      ],
+      "postLaunchCommands": [],
+      "postRestartCommands": [
+        "enable breakpoint",
+        "continue"
+      ],
+      "serverArgs": [
+        "-c", "adapter speed 4000"
+      ],
+      "swoConfig": {
+        "enabled": false
+      },
+      "showDevDebugOutput": "parsed"
+    }
+  ]
+}
