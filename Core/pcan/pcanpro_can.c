@@ -666,6 +666,7 @@ static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
   msg.size = dlc_to_bytes(hdr.DataLength);
   msg.timestamp = pcan_timestamp_us();
 
+
   if (p_dev->rx_isr) {
     if (p_dev->rx_isr(bus, &msg) < 0) {
       ++p_dev->rx_ovfs;

@@ -20,9 +20,11 @@
 #include "main.h"
 #include "fdcan.h"
 #include "gpio.h"
+#include "pcan_usb.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -116,12 +118,10 @@ int main(void) {
   MX_GPIO_Init();
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
-  MX_TIM3_Init();
-  MX_TIM8_Init();
   MX_UART4_Init();
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
-  MX_USB_DEVICE_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   printf("\r\n=== PCAN-USB Pro FD Emulator ===\r\n");
@@ -129,8 +129,11 @@ int main(void) {
   printf("Initializing PCAN components...\r\n");
 
   // Initialize PCAN components
+
   pcan_led_init();
   pcan_timestamp_init();
+  pcan_protocol_init();
+  // pcan_usb_device_init();
 
   // Initialize CAN channels with CAN-FD support
   // 500 kbps nominal bitrate, 2 Mbps data bitrate
@@ -138,7 +141,7 @@ int main(void) {
   pcan_can_init_fd(CAN_BUS_2, 500000, 2000000);
 
   /* USER CODE END 2 */
-  printf("Now entering on the maintest..\r\n");
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {

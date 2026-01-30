@@ -67,12 +67,16 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
   case 0:
     assert(p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] == 0);
     // size = (size+(64-1))&(~(64-1));
-    if (size > pfsm->dbsize)
+    if (size > pfsm->dbsize) {
+      printf("PCAN TX Error: Size %d > DBSize %lu\r\n", size, pfsm->dbsize);
       break;
+    }
     memcpy(pfsm->pdbuf, src, size);
     p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 1;
     /* prepare data transmit */
     pdev->ep_in[pfsm->ep_addr & EP_ADDR_MSK].total_length = size;
+
+    // printf("PCAN TX Submit: EP=0x%02X Size=%d\r\n", pfsm->ep_addr, size);
     USBD_LL_Transmit(pdev, pfsm->ep_addr, pfsm->pdbuf, size);
 
     pfsm->total_tx += size;

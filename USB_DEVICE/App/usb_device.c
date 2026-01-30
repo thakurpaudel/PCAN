@@ -20,7 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 
-#include "pcanpro_usbd.h"
+#include "usb_device.h"
 #include "usbd_core.h"
 #include "usbd_custom_hid_if.h"
 #include "usbd_customhid.h"
@@ -42,6 +42,7 @@
 
 /* USB Device Core handle declaration. */
 USBD_HandleTypeDef hUsbDeviceFS;
+extern USBD_ClassTypeDef usbd_pcanpro;
 
 /*
  * -- Insert your variables declaration here --
@@ -70,12 +71,11 @@ void MX_USB_DEVICE_Init(void) {
   if (USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK) {
     Error_Handler();
   }
-  /* SWITCHED TO PCAN-USB PRO CLASS DRIVER */
+  /* CHANGED: Use PCAN-USB Pro Class Driver instead of generic Custom HID */
   if (USBD_RegisterClass(&hUsbDeviceFS, &usbd_pcanpro) != USBD_OK) {
     Error_Handler();
   }
-  /* Custom HID Interface registration removed as it is handled by usbd_pcanpro
-   * internally */
+  /* Custom HID Interface registration is NOT needed for usbd_pcanpro class */
   /*
   if (USBD_CUSTOM_HID_RegisterInterface(&hUsbDeviceFS, &USBD_CustomHID_fops_FS)
   != USBD_OK)
