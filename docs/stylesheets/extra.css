@@ -1,0 +1,48 @@
+/* Custom styles for PCAN documentation */
+
+:root {
+  --md-primary-fg-color: #3f51b5;
+  --md-accent-fg-color: #536dfe;
+}
+
+/* Code blocks */
+.highlight {
+  border-radius: 0.2rem;
+}
+
+/* Admonitions */
+.admonition {
+  border-radius: 0.2rem;
+}
+
+/* Tables */
+table {
+  border-radius: 0.2rem;
+  overflow: hidden;
+}
+
+/* Custom CAN message styling */
+.can-message {
+  font-family: 'Roboto Mono', monospace;
+  background-color: var(--md-code-bg-color);
+  padding: 0.5rem;
+  border-radius: 0.2rem;
+  border-left: 4px solid var(--md-accent-fg-color);
+}
+
+/* Hardware specs table */
+.hw-specs {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.hw-specs th {
+  background-color: var(--md-primary-fg-color);
+  color: white;
+  padding: 0.75rem;
+}
+
+.hw-specs td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}

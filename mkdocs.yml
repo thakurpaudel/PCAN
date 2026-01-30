@@ -1,0 +1,174 @@
+site_name: PCAN-USB Pro FD Adapter
+site_description: STM32H743-based CAN/CAN-FD to USB adapter firmware documentation
+site_author: Yatri Team
+site_url: https://yourdomain.com/pcan
+
+# Repository
+repo_name: PCAN
+repo_url: https://github.com/yourusername/PCAN
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2026 Yatri Team
+
+# Configuration
+theme:
+  name: material
+  language: en
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/chip
+
+# Plugins
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - minify:
+      minify_html: true
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Page tree
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: getting-started/overview.md
+      - Prerequisites: getting-started/prerequisites.md
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - Hardware:
+      - Specifications: hardware/specifications.md
+      - Pin Configuration: hardware/pinout.md
+      - Clock Configuration: hardware/clocks.md
+      - Schematics: hardware/schematics.md
+  - Building:
+      - Build Instructions: build/instructions.md
+      - CMake Configuration: build/cmake.md
+      - Flashing: build/flashing.md
+      - Debugging: build/debugging.md
+  - Software:
+      - Architecture: software/architecture.md
+      - CAN Driver: software/can-driver.md
+      - USB Protocol: software/usb-protocol.md
+      - Timestamping: software/timestamp.md
+      - LED Control: software/leds.md
+  - API Reference:
+      - CAN API: api/can.md
+      - USB API: api/usb.md
+      - Protocol API: api/protocol.md
+  - Usage:
+      - CAN Configuration: usage/can-config.md
+      - USB Communication: usage/usb-comm.md
+      - Testing: usage/testing.md
+      - Troubleshooting: usage/troubleshooting.md
+  - Development:
+      - Contributing: CONTRIBUTING.md
+      - Code Style: development/code-style.md
+      - Testing Guidelines: development/testing.md
+      - Release Process: development/releases.md
+  - Reference:
+      - Changelog: CHANGELOG.md
+      - License: reference/license.md
+      - Acknowledgments: reference/acknowledgments.md
+
+# Extra
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/yourusername/PCAN
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/yourusername
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX
+  consent:
+    title: Cookie consent
+    description: >-
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
+
+# Additional CSS
+extra_css:
+  - stylesheets/extra.css
+
+# Additional JavaScript
+extra_javascript:
+  - javascripts/extra.js
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
