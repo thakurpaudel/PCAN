@@ -258,56 +258,52 @@ void pcan_can_install_err_callback(int bus, void (*cb)(int, uint32_t)) {
 static int _get_precalculated_bitrate(uint32_t bitrate, uint32_t *prescaler,
                                       uint32_t *tseg1, uint32_t *tseg2,
                                       uint32_t *sjw) {
-  *sjw = 1;
+  *sjw = 4; // Use a wider SJW for better sync
 
-  // These values assume 80 MHz FDCAN clock
-  // Sample point ~87.5%
+  // These values assume 120 MHz FDCAN clock (PLL1_Q)
+  // Target sample point ~80-87%
+  // Formula: 120MHz / (Prescaler * (1 + Tseg1 + Tseg2))
   switch (bitrate) {
   case 1000000u:
-    *prescaler = 8;
-    *tseg1 = 8;
-    *tseg2 = 1;
+    *prescaler = 6;
+    *tseg1 = 15;
+    *tseg2 = 4;
     break;
   case 800000u:
-    *prescaler = 10;
-    *tseg1 = 8;
-    *tseg2 = 1;
+    *prescaler = 15;
+    *tseg1 = 7;
+    *tseg2 = 2;
     break;
-  default:
   case 500000u:
-    *prescaler = 16;
-    *tseg1 = 8;
-    *tseg2 = 1;
+    *prescaler = 12;
+    *tseg1 = 15;
+    *tseg2 = 4;
     break;
   case 250000u:
-    *prescaler = 32;
-    *tseg1 = 8;
-    *tseg2 = 1;
+    *prescaler = 24;
+    *tseg1 = 15;
+    *tseg2 = 4;
     break;
   case 125000u:
-    *prescaler = 64;
-    *tseg1 = 8;
-    *tseg2 = 1;
+    *prescaler = 48;
+    *tseg1 = 15;
+    *tseg2 = 4;
     break;
   case 100000u:
-    *prescaler = 80;
-    *tseg1 = 8;
-    *tseg2 = 1;
+    *prescaler = 60;
+    *tseg1 = 15;
+    *tseg2 = 4;
     break;
   case 50000u:
-    *prescaler = 160;
-    *tseg1 = 8;
-    *tseg2 = 1;
+    *prescaler = 120;
+    *tseg1 = 15;
+    *tseg2 = 4;
     break;
-  case 20000u:
-    *prescaler = 400;
-    *tseg1 = 8;
-    *tseg2 = 1;
-    break;
-  case 10000u:
-    *prescaler = 800;
-    *tseg1 = 8;
-    *tseg2 = 1;
+  default:
+    // Fallback for 500k
+    *prescaler = 12;
+    *tseg1 = 15;
+    *tseg2 = 4;
     break;
   }
 
@@ -345,17 +341,18 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
   p_can->Init.DataTimeSeg2 = tseg2;
 
   // Message RAM configuration
+  p_can->Init.MessageRAMOffset = (bus == CAN_BUS_1) ? 0 : 1280;
   p_can->Init.StdFiltersNbr = 28;
   p_can->Init.ExtFiltersNbr = 8;
-  p_can->Init.RxFifo0ElmtsNbr = 64;
+  p_can->Init.RxFifo0ElmtsNbr = 16;
   p_can->Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_8;
-  p_can->Init.RxFifo1ElmtsNbr = 64;
+  p_can->Init.RxFifo1ElmtsNbr = 16;
   p_can->Init.RxFifo1ElmtSize = FDCAN_DATA_BYTES_8;
   p_can->Init.RxBuffersNbr = 0;
   p_can->Init.RxBufferSize = FDCAN_DATA_BYTES_8;
   p_can->Init.TxEventsNbr = 0;
   p_can->Init.TxBuffersNbr = 0;
-  p_can->Init.TxFifoQueueElmtsNbr = 32;
+  p_can->Init.TxFifoQueueElmtsNbr = 16;
   p_can->Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   p_can->Init.TxElmtSize = FDCAN_DATA_BYTES_8;
 
@@ -413,18 +410,20 @@ int pcan_can_init_fd(int bus, uint32_t nom_bitrate, uint32_t data_bitrate) {
   p_can->Init.DataTimeSeg1 = data_tseg1;
   p_can->Init.DataTimeSeg2 = data_tseg2;
 
-  // Message RAM configuration for FD (larger buffers)
+  // Message RAM configuration for FD (larger buffers, fewer elements to fit
+  // 10KB RAM)
+  p_can->Init.MessageRAMOffset = (bus == CAN_BUS_1) ? 0 : 1280;
   p_can->Init.StdFiltersNbr = 28;
   p_can->Init.ExtFiltersNbr = 8;
-  p_can->Init.RxFifo0ElmtsNbr = 64;
+  p_can->Init.RxFifo0ElmtsNbr = 16;
   p_can->Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_64;
-  p_can->Init.RxFifo1ElmtsNbr = 64;
+  p_can->Init.RxFifo1ElmtsNbr = 16;
   p_can->Init.RxFifo1ElmtSize = FDCAN_DATA_BYTES_64;
   p_can->Init.RxBuffersNbr = 0;
   p_can->Init.RxBufferSize = FDCAN_DATA_BYTES_64;
   p_can->Init.TxEventsNbr = 0;
   p_can->Init.TxBuffersNbr = 0;
-  p_can->Init.TxFifoQueueElmtsNbr = 32;
+  p_can->Init.TxFifoQueueElmtsNbr = 16;
   p_can->Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   p_can->Init.TxElmtSize = FDCAN_DATA_BYTES_64;
 
@@ -665,7 +664,6 @@ static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
 
   msg.size = dlc_to_bytes(hdr.DataLength);
   msg.timestamp = pcan_timestamp_us();
-
 
   if (p_dev->rx_isr) {
     if (p_dev->rx_isr(bus, &msg) < 0) {
