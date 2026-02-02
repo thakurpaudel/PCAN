@@ -299,30 +299,19 @@ static uint8_t device_ep0_rx_ready(USBD_HandleTypeDef *pdev) {
 }
 
 static uint8_t device_data_in(USBD_HandleTypeDef *pdev, uint8_t epnum) {
-  // printf("USB: Data IN (TX Complete) EP=0x%02X\r\n", epnum);
   struct t_class_data *p_data = (void *)pdev->pClassData;
 
   if (pdev->pClassData == 0)
     return USBD_FAIL;
 
-/* use ZLP */
-#if 1
-  PCD_HandleTypeDef *hpcd = pdev->pData;
-  uint32_t len = pdev->ep_in[epnum].total_length;
-  /* packet is multiple of maxpacket, so tell host what all transfer is done */
-  if (len && (len % hpcd->IN_ep[epnum].maxpacket) == 0U) {
-    /* update the packet total length */
-    pdev->ep_in[epnum].total_length = 0U;
-    /* send ZLP */
-    USBD_LL_Transmit(pdev, epnum, NULL, 0U);
-  } else {
-    /* tx done, no active transfer */
-    p_data->ep_tx_in_use[epnum] = 0;
+  // Clear busy flag immediately on packet acknowledgment
+  p_data->ep_tx_in_use[epnum & 0x0F] = 0;
+
+  // Optional: print debug only if this was a bulk endpoint we care about
+  if ((epnum & 0x7F) >= 1 && (epnum & 0x7F) <= 3) {
+    printf("USB: Data IN (TX Okay) EP=0x%02X\r\n", epnum | 0x80);
   }
-#else
-  pdev->ep_in[epnum].total_length = 0U;
-  p_data->ep_tx_in_use[epnum] = 0;
-#endif
+
   return USBD_OK;
 }
 

@@ -20,14 +20,15 @@ static struct t_can_dev {
   uint32_t tx_errs;
   uint32_t tx_ovfs;
 
-  uint32_t rx_msgs;
-  uint32_t rx_errs;
-  uint32_t rx_ovfs;
+  uint32_t rx_msgs; // count
+  uint32_t rx_errs; // error count
+  uint32_t rx_ovfs; // overflow
 
   struct t_can_msg tx_fifo[CAN_TX_FIFO_SIZE];
   uint32_t tx_head;
   uint32_t tx_tail;
   uint32_t esr_reg;
+
   uint8_t fd_mode; // 0 = Classic CAN, 1 = CAN FD
   int (*rx_isr)(uint8_t, struct t_can_msg *);
   int (*tx_isr)(uint8_t, struct t_can_msg *);
@@ -60,7 +61,7 @@ static const uint8_t DLC_to_bytes[] = {0, 1,  2,  3,  4,  5,  6,  7,
 
 static uint32_t bytes_to_dlc(uint8_t bytes) {
   if (bytes <= 8)
-    return bytes << 16; // DLC value for FDCAN
+    return bytes; // H7 HAL uses raw 0-8 for classic
   else if (bytes <= 12)
     return FDCAN_DLC_BYTES_12;
   else if (bytes <= 16)
@@ -78,7 +79,7 @@ static uint32_t bytes_to_dlc(uint8_t bytes) {
 }
 
 static uint8_t dlc_to_bytes(uint32_t dlc) {
-  uint32_t code = (dlc >> 16) & 0x0F;
+  uint32_t code = dlc & 0x0F; // No shift on H7 HAL
   if (code < 16)
     return DLC_to_bytes[code];
   return 8;
@@ -202,9 +203,10 @@ static int _can_send(FDCAN_HandleTypeDef *p_can, struct t_can_msg *p_msg,
     return -1;
   }
 
-  printf("CAN%d HW TX: ID=0x%lx\r\n",
+  printf("CAN%d HW TX: ID=0x%lx DLC=%lu\r\n",
          (int)(_bus_from_int_dev(p_can->Instance) + 1),
-         (unsigned long)msg.Identifier);
+         (unsigned long)msg.Identifier, (unsigned long)msg.DataLength);
+
   return 0;
 }
 
@@ -734,10 +736,7 @@ void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef *hcan,
 /* ISR Handlers */
 #if (CAN_WITHOUT_ISR == 0)
 void FDCAN1_IT0_IRQHandler(void) { HAL_FDCAN_IRQHandler(&hcan[CAN_BUS_1]); }
-
 void FDCAN1_IT1_IRQHandler(void) { HAL_FDCAN_IRQHandler(&hcan[CAN_BUS_1]); }
-
 void FDCAN2_IT0_IRQHandler(void) { HAL_FDCAN_IRQHandler(&hcan[CAN_BUS_2]); }
-
 void FDCAN2_IT1_IRQHandler(void) { HAL_FDCAN_IRQHandler(&hcan[CAN_BUS_2]); }
 #endif

@@ -66,9 +66,29 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
 
   switch (pfsm->state) {
   case 1:
-    if (p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F])
+    if (p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F]) {
+      static uint32_t last_busy_print = 0;
+      static uint32_t last_busy_time = 0;
+
+      if (last_busy_time == 0)
+        last_busy_time = HAL_GetTick();
+
+      if (HAL_GetTick() - last_busy_time > 500) { // 500ms timeout
+        printf("PCAN TX Timeout: EP=0x%02X - Force Clear\r\n", pfsm->ep_addr);
+        p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 0;
+        last_busy_time = 0;
+        pfsm->state = 0;
+        return 0;
+      }
+
+      if (HAL_GetTick() - last_busy_print > 1000) {
+        printf("PCAN TX Busy: EP=0x%02X\r\n", pfsm->ep_addr);
+        last_busy_print = HAL_GetTick();
+      }
       return 0;
+    }
     pfsm->state = 0;
+
     /* fall through */
   case 0:
     assert(p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] == 0);
@@ -78,16 +98,19 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
       break;
     }
     memcpy(pfsm->pdbuf, src, size);
-    p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 1;
     /* prepare data transmit */
     pdev->ep_in[pfsm->ep_addr & EP_ADDR_MSK].total_length = size;
 
-    // printf("PCAN TX Submit: EP=0x%02X Size=%d\r\n", pfsm->ep_addr, size);
-    USBD_LL_Transmit(pdev, pfsm->ep_addr, pfsm->pdbuf, size);
-
-    pfsm->total_tx += size;
-    pfsm->state = 1;
-    return 1;
+    printf("PCAN TX Submit: EP=0x%02X Size=%d\r\n", pfsm->ep_addr, size);
+    if (USBD_LL_Transmit(pdev, pfsm->ep_addr, pfsm->pdbuf, size) == USBD_OK) {
+      p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 1;
+      pfsm->total_tx += size;
+      pfsm->state = 1;
+      return 1;
+    } else {
+      printf("PCAN TX Failed (USB Busy): EP=0x%02X\r\n", pfsm->ep_addr);
+      return 0; // Try again next poll
+    }
   }
 
   return 0;

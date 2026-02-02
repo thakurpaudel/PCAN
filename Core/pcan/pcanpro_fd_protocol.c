@@ -67,42 +67,52 @@ static struct {
     .can[1] = {.channel_nr = 0xFFFFFFFF, .can_clock = 120000000u},
 };
 
-#define PCAN_USB_DATA_BUFFER_SIZE 2048
-static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE]
+#define PCAN_USB_DATA_BUFFER_SIZE 512
+#define PROTO_BUFFERS 3
+static uint8_t resp_buffer[PROTO_BUFFERS][PCAN_USB_DATA_BUFFER_SIZE]
     __attribute__((section(".usb_buffers")));
 static uint8_t drv_load_packet[16] __attribute__((section(".usb_buffers")));
 
-static uint16_t data_pos = 0;
-static uint8_t data_buffer[PCAN_USB_DATA_BUFFER_SIZE]
+static uint16_t data_pos[PROTO_BUFFERS] = {0, 0, 0};
+static uint8_t data_buffer[PROTO_BUFFERS][PCAN_USB_DATA_BUFFER_SIZE]
     __attribute__((section(".usb_buffers")));
 
-void *pcan_data_alloc_buffer(uint16_t type, uint16_t size) {
+void *pcan_data_alloc_buffer(uint8_t ep_idx, uint16_t type, uint16_t size) {
+  if (ep_idx >= PROTO_BUFFERS)
+    return NULL;
   uint16_t aligned_size = (size + (4 - 1)) & (~(4 - 1));
-  if (sizeof(data_buffer) < (aligned_size + data_pos + 4))
+  if (PCAN_USB_DATA_BUFFER_SIZE < (aligned_size + data_pos[ep_idx] + 4))
     return (void *)0;
-  struct ucan_msg *pmsg = (void *)&data_buffer[data_pos];
+  struct ucan_msg *pmsg = (void *)&data_buffer[ep_idx][data_pos[ep_idx]];
 
   pmsg->size = aligned_size;
   pmsg->type = type;
   pmsg->ts_low = pcan_timestamp_us();
   pmsg->ts_high = 0;
 
-  data_pos += aligned_size;
+  data_pos[ep_idx] += aligned_size;
   return pmsg;
 }
 
-static struct t_m2h_fsm resp_fsm[2] = {
+static struct t_m2h_fsm resp_fsm[PROTO_BUFFERS] = {
     [0] =
         {
             .state = 0,
-            .ep_addr = PCAN_USB_EP_CMDIN,
+            .ep_addr = PCAN_USB_EP_CMDIN, // 0x81
             .pdbuf = resp_buffer[0],
             .dbsize = PCAN_USB_DATA_BUFFER_SIZE,
         },
-    [1] = {
+    [1] =
+        {
+            .state = 0,
+            .ep_addr = PCAN_USB_EP_MSGIN_CH1, // 0x82
+            .pdbuf = resp_buffer[1],
+            .dbsize = PCAN_USB_DATA_BUFFER_SIZE,
+        },
+    [2] = {
         .state = 0,
-        .ep_addr = PCAN_USB_EP_MSGIN_CH1,
-        .pdbuf = resp_buffer[1],
+        .ep_addr = PCAN_USB_EP_MSGIN_CH2, // 0x83
+        .pdbuf = resp_buffer[2],
         .dbsize = PCAN_USB_DATA_BUFFER_SIZE,
     }};
 
@@ -175,6 +185,7 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
 void pcan_ep0_receive(void) {
   if (drv_load_packet[0] == 0) {
     pcan_flush_ep(PCAN_USB_EP_MSGIN_CH1);
+    pcan_flush_ep(PCAN_USB_EP_MSGIN_CH2);
     pcan_flush_ep(PCAN_USB_EP_CMDIN);
     pcan_device.can_drv_loaded = drv_load_packet[1];
     pcan_led_set_mode(LED_STAT, LED_MODE_BLINK_SLOW, 0xFFFFFFFF);
@@ -196,7 +207,7 @@ int pcan_protocol_rx_frame(uint8_t channel, struct t_can_msg *pmsg) {
       15, 15, 15, 15, 15, 15, 15, 15     /* 57 - 64 */
   };
   struct ucan_rx_msg *pcan_msg = pcan_data_alloc_buffer(
-      UCAN_MSG_CAN_RX, sizeof(struct ucan_rx_msg) + pmsg->size);
+      channel + 1, UCAN_MSG_CAN_RX, sizeof(struct ucan_rx_msg) + pmsg->size);
   if (!pcan_msg)
     return -1;
 
@@ -320,8 +331,8 @@ int pcan_protocol_tx_frame(struct ucan_tx_msg *pmsg) {
 }
 
 static int pcan_protocol_send_status(uint8_t channel, uint8_t status) {
-  struct ucan_status_msg *ps =
-      pcan_data_alloc_buffer(UCAN_MSG_STATUS, sizeof(struct ucan_status_msg));
+  struct ucan_status_msg *ps = pcan_data_alloc_buffer(
+      0, UCAN_MSG_STATUS, sizeof(struct ucan_status_msg));
   if (!ps)
     return -1;
 
@@ -589,18 +600,20 @@ void pcan_protocol_poll(void) {
 
   pcan_can_poll();
 
-  /* flush data */
-  if (data_pos > 0) {
-    /* endmark */
-    *(uint32_t *)&data_buffer[data_pos] = 0x00000000;
-    uint16_t flush_size = data_pos + 4;
-    /* align to 64 */
-    flush_size += (64 - 1);
-    flush_size &= ~(64 - 1);
-    int res = pcan_flush_data(&resp_fsm[1], data_buffer, flush_size);
-    if (res) {
-      data_pos = 0;
-      pcan_device.last_time_flush = ts_us;
+  /* flush data for all active channels (CMD, CH1, CH2) */
+  for (int i = 0; i < PROTO_BUFFERS; i++) {
+    if (data_pos[i] > 0) {
+      /* endmark */
+      *(uint32_t *)&data_buffer[i][data_pos[i]] = 0x00000000;
+      uint16_t flush_size = data_pos[i] + 4;
+      /* align to 64 */
+      flush_size += (64 - 1);
+      flush_size &= ~(64 - 1);
+      int res = pcan_flush_data(&resp_fsm[i], data_buffer[i], flush_size);
+      if (res) {
+        data_pos[i] = 0;
+        pcan_device.last_time_flush = ts_us;
+      }
     }
   }
 #if 0
@@ -636,26 +649,26 @@ void pcan_protocol_poll(void) {
     }
   }
 
-  if ((ts_ms - pcan_device.last_time_sync) < 1000u)
-    return;
-  struct ucan_usb_ts_msg *pts = pcan_data_alloc_buffer(
-      UCAN_USB_MSG_CALIBRATION, sizeof(struct ucan_usb_ts_msg));
-  if (!pts)
-    return;
-
-  pts->usb_frame_index = pcan_usb_frame_number();
-  pts->unused = 0;
   pcan_device.last_time_sync = ts_ms;
 
   for (int i = 0; i < CAN_CHANNEL_MAX; i++) {
+    struct ucan_usb_ts_msg *pts = pcan_data_alloc_buffer(
+        i + 1, UCAN_USB_MSG_CALIBRATION, sizeof(struct ucan_usb_ts_msg));
+    if (!pts)
+      continue;
+
+    pts->usb_frame_index = pcan_usb_frame_number();
+    pts->unused = 0;
+
     if (!(pcan_device.can[i].opt_mask & UCAN_OPTION_BUSLOAD))
       continue;
     if (!pcan_device.can[i].bus_active)
       continue;
+
     struct ucan_bus_load_msg *pbs = pcan_data_alloc_buffer(
-        UCAN_MSG_BUSLOAD, sizeof(struct ucan_bus_load_msg));
+        i + 1, UCAN_MSG_BUSLOAD, sizeof(struct ucan_bus_load_msg));
     if (!pbs)
-      return;
+      continue;
 
     pbs->channel = i;
     /* 0 ... 100% => 0 ... 4095 */

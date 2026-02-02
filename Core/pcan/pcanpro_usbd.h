@@ -19,8 +19,7 @@
 #define PCAN_USB_EP_MSGOUT_CH1 0x02
 #define PCAN_USB_EP_MSGIN_CH1 0x82
 #define PCAN_USB_EP_MSGOUT_CH2 0x03
-#define PCAN_USB_EP_MSGIN_CH2                                                  \
-  0x82 // Note: Standard often uses 0x83 for CH2, but 0x82 is MSGIN_CH1
+#define PCAN_USB_EP_MSGIN_CH2 0x83
 
 /* Board-specific packet sizes based on build configuration */
 #if defined(PCAN_PRO_FD) || defined(PCAN_FD) || defined(PCAN_X6)

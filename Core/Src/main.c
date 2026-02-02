@@ -145,7 +145,7 @@ int main(void) {
 
     /* USER CODE BEGIN 3 */
     pcan_usb_device_poll();
-    pcan_can_poll();
+    // pcan_can_poll();
     pcan_protocol_poll();
     pcan_led_poll();
   }
