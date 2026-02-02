@@ -43,6 +43,15 @@ static struct t_can_dev {
    FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY | FDCAN_IT_BUS_OFF |          \
    FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING)
 
+/* --------------- HAL PART ------------- */
+static int _bus_from_int_dev(FDCAN_GlobalTypeDef *can) {
+  if (can == FDCAN1)
+    return CAN_BUS_1;
+  else if (can == FDCAN2)
+    return CAN_BUS_2;
+  return CAN_BUS_1;
+}
+
 #define CAN_WITHOUT_ISR 1
 
 // Convert DLC to actual data length
@@ -152,8 +161,13 @@ static int _can_send(FDCAN_HandleTypeDef *p_can, struct t_can_msg *p_msg,
   FDCAN_TxHeaderTypeDef msg = {0};
 
   // Check if TX FIFO is full
-  if (HAL_FDCAN_GetTxFifoFreeLevel(p_can) == 0)
+  if (HAL_FDCAN_GetTxFifoFreeLevel(p_can) == 0) {
+    if (HAL_GetTick() % 1000 < 50) { // Limit frequency
+      printf("CAN%d HW TX FIFO FULL (Bus stuck?)\r\n",
+             (int)(_bus_from_int_dev(p_can->Instance) + 1));
+    }
     return -1;
+  }
 
   if (p_msg->flags & MSG_FLAG_EXT) {
     msg.Identifier = p_msg->id & 0x1FFFFFFF;
@@ -183,9 +197,14 @@ static int _can_send(FDCAN_HandleTypeDef *p_can, struct t_can_msg *p_msg,
   msg.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
   msg.MessageMarker = 0;
 
-  if (HAL_FDCAN_AddMessageToTxFifoQ(p_can, &msg, p_msg->data) != HAL_OK)
+  if (HAL_FDCAN_AddMessageToTxFifoQ(p_can, &msg, p_msg->data) != HAL_OK) {
+    printf("CAN HW TX ERR\r\n");
     return -1;
+  }
 
+  printf("CAN%d HW TX: ID=0x%lx\r\n",
+         (int)(_bus_from_int_dev(p_can->Instance) + 1),
+         (unsigned long)msg.Identifier);
   return 0;
 }
 
@@ -359,10 +378,10 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
   if (HAL_FDCAN_Init(p_can) != HAL_OK)
     return -1;
 
-  // Configure global filter to reject non-matching frames
-  if (HAL_FDCAN_ConfigGlobalFilter(p_can, FDCAN_REJECT, FDCAN_REJECT,
-                                   FDCAN_FILTER_REMOTE,
-                                   FDCAN_FILTER_REMOTE) != HAL_OK)
+  // Permissive filter for debugging: Accept all
+  if (HAL_FDCAN_ConfigGlobalFilter(
+          p_can, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+          FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
     return -1;
 
   // Activate notifications
@@ -372,6 +391,8 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
   if (HAL_FDCAN_Start(p_can) != HAL_OK)
     return -1;
 
+  printf("CAN%d: Init Classic @ %u bps (NORMAL MODE)\r\n", bus + 1,
+         (unsigned int)bitrate);
   return 0;
 }
 
@@ -430,10 +451,10 @@ int pcan_can_init_fd(int bus, uint32_t nom_bitrate, uint32_t data_bitrate) {
   if (HAL_FDCAN_Init(p_can) != HAL_OK)
     return -1;
 
-  // Configure global filter
-  if (HAL_FDCAN_ConfigGlobalFilter(p_can, FDCAN_REJECT, FDCAN_REJECT,
-                                   FDCAN_FILTER_REMOTE,
-                                   FDCAN_FILTER_REMOTE) != HAL_OK)
+  // Permissive filter for debugging: Accept all
+  if (HAL_FDCAN_ConfigGlobalFilter(
+          p_can, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+          FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
     return -1;
 
   // Activate notifications
@@ -443,6 +464,8 @@ int pcan_can_init_fd(int bus, uint32_t nom_bitrate, uint32_t data_bitrate) {
   if (HAL_FDCAN_Start(p_can) != HAL_OK)
     return -1;
 
+  printf("CAN%d: Init FD @ %u/%u bps (NORMAL MODE)\r\n", bus + 1,
+         (unsigned int)nom_bitrate, (unsigned int)data_bitrate);
   return 0;
 }
 
@@ -614,15 +637,6 @@ void pcan_can_poll(void) {
   }
 }
 
-/* --------------- HAL PART ------------- */
-static int _bus_from_int_dev(FDCAN_GlobalTypeDef *can) {
-  if (can == FDCAN1)
-    return CAN_BUS_1;
-  else if (can == FDCAN2)
-    return CAN_BUS_2;
-  return CAN_BUS_1;
-}
-
 static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
   FDCAN_RxHeaderTypeDef hdr;
   const int bus = _bus_from_int_dev(hcan->Instance);
@@ -672,7 +686,8 @@ static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
       return;
     }
   }
-  // printf("CAN%d RX: ID=0x%lX Len=%d\r\n", bus + 1, msg.id, msg.size);
+  printf("CAN%d RX: ID=0x%X Len=%d\r\n", bus + 1, (unsigned int)msg.id,
+         msg.size);
   ++p_dev->rx_msgs;
 }
 
@@ -713,7 +728,7 @@ void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef *hcan,
   if (can_dev_array[bus].err_handler) {
     can_dev_array[bus].err_handler(bus, hcan->Instance->PSR);
   }
-  printf("CAN%d ERR: Status=0x%lX\r\n", bus + 1, ErrorStatusITs);
+  printf("CAN%d ERR: Status=0x%X\r\n", bus + 1, (unsigned int)ErrorStatusITs);
 }
 
 /* ISR Handlers */

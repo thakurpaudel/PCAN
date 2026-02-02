@@ -63,8 +63,8 @@ static struct {
 } pcan_device = {
     .device_nr = 0xFFFFFFFF,
 
-    .can[0] = {.channel_nr = 0xFFFFFFFF, .can_clock = 80000000u},
-    .can[1] = {.channel_nr = 0xFFFFFFFF, .can_clock = 80000000u},
+    .can[0] = {.channel_nr = 0xFFFFFFFF, .can_clock = 120000000u},
+    .can[1] = {.channel_nr = 0xFFFFFFFF, .can_clock = 120000000u},
 };
 
 #define PCAN_USB_DATA_BUFFER_SIZE 2048
@@ -304,6 +304,14 @@ int pcan_protocol_tx_frame(struct ucan_tx_msg *pmsg) {
 
   msg.timestamp = pcan_timestamp_us();
 
+  printf("[PC -> CAN%d] ID=0x%03lX DLC=%d FD=%d BRS=%d Data:", channel, msg.id,
+         msg.size, (msg.flags & MSG_FLAG_FD) != 0,
+         (msg.flags & MSG_FLAG_BRS) != 0);
+  for (int i = 0; i < msg.size; i++) {
+    printf(" %02X", msg.data[i]);
+  }
+  printf("\r\n");
+
   if (pcan_can_write(channel, &msg) < 0) {
     /* TODO: tx queue overflow ? */
     ;
@@ -324,7 +332,7 @@ static int pcan_protocol_send_status(uint8_t channel, uint8_t status) {
 
 int pcan_protocol_set_baudrate(uint8_t channel, struct t_can_bitrate *pbitrate,
                                struct t_can_bitrate *pdata_bitrate) {
-#define PCAN_STM32_SYSCLK_HZ (24000000u)
+#define PCAN_STM32_SYSCLK_HZ (120000000u)
   uint32_t bitrate, pcan_bitrate, pcan_brp;
   struct t_can_bitrate *pcur;
 
