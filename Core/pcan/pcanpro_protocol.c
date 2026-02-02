@@ -772,7 +772,8 @@ void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
   if (!rec_ptr)
     return;
 
-  int buffer_ep = (ep == 1) ? PCAN_USB_BUFFER_CMD : PCAN_USB_BUFFER_DATA;
+  int buffer_ep =
+      (ep == PCAN_USB_EP_CMDOUT) ? PCAN_USB_BUFFER_CMD : PCAN_USB_BUFFER_DATA;
   uint32_t r;
 
   for (r = 0; r < *m.u.rec_counter_read; r++) {

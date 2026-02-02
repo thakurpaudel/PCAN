@@ -68,11 +68,13 @@ static struct {
 };
 
 #define PCAN_USB_DATA_BUFFER_SIZE 2048
-static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE];
-static uint8_t drv_load_packet[16];
+static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE]
+    __attribute__((section(".usb_buffers")));
+static uint8_t drv_load_packet[16] __attribute__((section(".usb_buffers")));
 
 static uint16_t data_pos = 0;
-static uint8_t data_buffer[PCAN_USB_DATA_BUFFER_SIZE];
+static uint8_t data_buffer[PCAN_USB_DATA_BUFFER_SIZE]
+    __attribute__((section(".usb_buffers")));
 
 void *pcan_data_alloc_buffer(uint16_t type, uint16_t size) {
   uint16_t aligned_size = (size + (4 - 1)) & (~(4 - 1));
@@ -130,10 +132,11 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
           .flags = 0x00000000,
           .unk = {0x01, /* cmd_out */
                   0x81, /* cmd_in */
-                  0x02, /* write */
-                  0x03, /* write */
-                  0x82, /* read */
-                  0x00, 0x00, 0x00}};
+                  0x02, /* write1 */
+                  0x03, /* write2 */
+                  0x82, /* read1 */
+                  0x83, /* read2 */
+                  0x00, 0x00}};
       /* windows/linux has different struct size */
       fwi.size_of = req->wLength;
       fwi.dev_id[0] = pcan_device.can[0].channel_nr;
@@ -518,7 +521,7 @@ static void pcan_protocol_process_cmd(uint8_t *ptr, uint16_t size) {
 }
 
 void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
-  if (ep == 1) {
+  if (ep == PCAN_USB_EP_CMDOUT) {
     pcan_protocol_process_cmd(ptr, size);
     return;
   }

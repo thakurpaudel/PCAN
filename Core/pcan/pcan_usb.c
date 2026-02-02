@@ -39,7 +39,7 @@ void pcan_usb_device_init(void) {
 void pcan_usb_device_poll(void) {
   // HAL_PCD_IRQHandler(&hpcd_usb);
   // Manual Polling Mode Enabled
-  HAL_PCD_IRQHandler(&hUsbDeviceFS.pData[0]);
+  HAL_PCD_IRQHandler((PCD_HandleTypeDef *)hUsbDeviceFS.pData);
 }
 
 uint16_t pcan_usb_frame_number(void) {
