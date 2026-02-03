@@ -131,17 +131,12 @@ int main(void) {
   pcan_protocol_init();
   pcan_usb_device_init();
 
-  // Initialize CAN channels based on build mode
+  // Note: CAN initialization is handled by pcan_protocol_init()
+  // which sets up filters and RX/TX callbacks properly
 #if PCAN_SUPPORTS_FD
-  // CAN-FD mode: 500kbps nominal, 2Mbps data
-  pcan_can_init_fd(CAN_BUS_1, 500000, 2000000);
-  pcan_can_init_fd(CAN_BUS_2, 500000, 2000000);
-  printf("Mode: CAN-FD (500k/2M)\r\n");
+  printf("Mode: CAN-FD Ready\r\n");
 #else
-  // Classic CAN mode: 500kbps
-  pcan_can_init(CAN_BUS_1, 500000);
-  pcan_can_init(CAN_BUS_2, 500000);
-  printf("Mode: Classic CAN (500k)\r\n");
+  printf("Mode: Classic CAN Ready\r\n");
 #endif
 
   /* USER CODE END 2 */

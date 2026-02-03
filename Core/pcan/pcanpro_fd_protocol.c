@@ -592,6 +592,11 @@ void pcan_protocol_init(void) {
 
   pcan_can_install_tx_callback(CAN_BUS_1, pcan_protocol_tx_frame_cb);
   pcan_can_install_tx_callback(CAN_BUS_2, pcan_protocol_tx_frame_cb);
+
+  // Stop buses - wait for PC driver to activate via UCAN_CMD_NORMAL_MODE
+  pcan_can_set_bus_active(CAN_BUS_1, 0);
+  pcan_can_set_bus_active(CAN_BUS_2, 0);
+  printf("PCAN: CAN buses initialized (waiting for PC driver)\r\n");
 }
 
 void pcan_protocol_poll(void) {
