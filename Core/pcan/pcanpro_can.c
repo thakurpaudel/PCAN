@@ -338,6 +338,8 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
   if (!p_can)
     return 0;
 
+  HAL_FDCAN_DeInit(p_can);
+
   // Frame format: Classic CAN by default
   p_can->Init.FrameFormat = FDCAN_FRAME_CLASSIC;
   can_dev_array[bus].fd_mode = 0;
@@ -398,6 +400,11 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
   return 0;
 }
 
+// Simple initialization for Classic CAN (alias for pcan_can_init_ex)
+int pcan_can_init(int bus, uint32_t bitrate) {
+  return pcan_can_init_ex(bus, bitrate);
+}
+
 // Initialize with CAN FD support
 int pcan_can_init_fd(int bus, uint32_t nom_bitrate, uint32_t data_bitrate) {
   FDCAN_HandleTypeDef *p_can = can_dev_array[bus].dev;
@@ -406,6 +413,8 @@ int pcan_can_init_fd(int bus, uint32_t nom_bitrate, uint32_t data_bitrate) {
 
   if (!p_can)
     return 0;
+
+  HAL_FDCAN_DeInit(p_can);
 
   // Frame format: FD CAN with BRS
   p_can->Init.FrameFormat = FDCAN_FRAME_FD_BRS;
@@ -620,6 +629,21 @@ void pcan_can_poll(void) {
 
   pcan_can_flush_tx(CAN_BUS_1);
   pcan_can_flush_tx(CAN_BUS_2);
+
+  // Periodic CAN bus status debug (every 5 seconds)
+  static uint32_t last_status_print = 0;
+  if ((ts_ms - last_status_print) > 5000) {
+    last_status_print = ts_ms;
+    for (int i = 0; i < CAN_BUS_TOTAL; i++) {
+      FDCAN_HandleTypeDef *pcan = can_dev_array[i].dev;
+      if (!pcan)
+        continue;
+      uint32_t psr = pcan->Instance->PSR;
+      printf("CAN%d Status: PSR=0x%08lX RX=%lu TX=%lu ERR=%lu\r\n", i + 1, psr,
+             can_dev_array[i].rx_msgs, can_dev_array[i].tx_msgs,
+             can_dev_array[i].tx_errs);
+    }
+  }
 
   if ((uint32_t)(ts_ms - err_last_check) > 250) {
     err_last_check = ts_ms;

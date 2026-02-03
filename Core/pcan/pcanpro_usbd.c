@@ -30,7 +30,7 @@ struct t_pcanpro_description {
   USB_ENDPOINT_DESCRIPTOR ep5_i1;
   USB_ENDPOINT_DESCRIPTOR ep6_i1;
 #endif
-};
+} __attribute__((packed));
 
 #if defined(__ICCARM__)
 #pragma data_alignment = 4

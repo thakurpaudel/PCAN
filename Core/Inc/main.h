@@ -64,19 +64,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 /* LED Mapping for PCAN Firmware */
-#define LED_STAT_PORT LED_1_GPIO_Port
-#define LED_STAT_PIN LED_1_Pin
 
-// Map all Channel Activity to LED_2 (Shared)
-#define LED_CH0_TX_PORT LED_2_GPIO_Port
-#define LED_CH0_TX_PIN LED_2_Pin
-#define LED_CH0_RX_PORT LED_2_GPIO_Port
-#define LED_CH0_RX_PIN LED_2_Pin
-
-#define LED_CH1_TX_PORT LED_2_GPIO_Port
-#define LED_CH1_TX_PIN LED_2_Pin
-#define LED_CH1_RX_PORT LED_2_GPIO_Port
-#define LED_CH1_RX_PIN LED_2_Pin
 
 /* USER CODE END Private defines */
 /* USER CODE END Private defines */

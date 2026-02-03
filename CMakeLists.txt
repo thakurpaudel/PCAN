@@ -55,11 +55,18 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
 )
 
+# CAN Mode Selection (CLASSIC or FD)
+option(PCAN_CAN_FD_MODE "Enable CAN-FD mode (vs Classic CAN)" OFF)
+
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    PCAN_PRO_FD
     USE_CPP_LOGGER
-    # Add other user defined symbols if needed
+    STM32H743XX
+    # CAN mode configuration
+    $<$<BOOL:${PCAN_CAN_FD_MODE}>:PCAN_PRO_FD>
+    $<$<BOOL:${PCAN_CAN_FD_MODE}>:PCAN_CAN_FD_ENABLED=1>
+    $<$<NOT:$<BOOL:${PCAN_CAN_FD_MODE}>>:PCAN_PRO>
+    $<$<NOT:$<BOOL:${PCAN_CAN_FD_MODE}>>:PCAN_CLASSIC_MODE=1>
 )
 
 # Remove wrong libob.a library dependency when using cpp files

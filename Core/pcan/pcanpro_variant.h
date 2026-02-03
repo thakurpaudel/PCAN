@@ -1,41 +1,30 @@
 #pragma once
+#include "main.h"
 
 // Define your hardware variant here
 // Options: DEVEBOX_H743, NUCLEO_H743, CUSTOM_H743, EMPTY_STUB
-#define DEVEBOX_H743
 
-#if (defined DEVEBOX_H743)
-/* FDCAN pins are configured by CubeMX - see fdcan.c */
-/* FDCAN1: PD0 (RX), PD1 (TX) - AF9_FDCAN1 */
-/* FDCAN2: PB5 (RX), PB6 (TX) - AF9_FDCAN2 */
 
-/* LED pins - matching CubeMX configuration (gpio.c) */
-/* LED_1: PC7, LED_2: PE2 */
-/* We'll use these for CAN activity indication */
-/* LED_1: PC7 (Status), LED_2: PE2 (Activity) */
+#if (defined STM32H743XX)
 
-/* Mapped in main.h now */
-// #define LED_STAT_PORT GPIOC
-// #define LED_STAT_PIN GPIO_PIN_7 // LED_1 (PC7)
 
-// Use LED_2 (PE2) for all activity for now, or split if needed
-// User requested "lead_1 and lead_2 as status"
-// Let's map Channel 0 to LED_1 (shared with STAT) or LED_2?
-// Given "lead_1" and "lead_2", let's make:
-// LED_1 = Status / Heartbeat
-// LED_2 = CAN Activity (both channels)
+/* LED Mapping for PCAN Firmware */
+/*
+* Leads are setup from the cube max
+*/
+#define LED_STAT_PORT LED_1_GPIO_Port
+#define LED_STAT_PIN LED_1_Pin
 
-// #define LED_CH0_TX_PORT GPIOE
-// #define LED_CH0_TX_PIN GPIO_PIN_2 // LED_2 (PE2)
+// Map all Channel Activity to LED_2 (Shared)
+#define LED_CH0_TX_PORT LED_2_GPIO_Port
+#define LED_CH0_TX_PIN LED_2_Pin
+#define LED_CH0_RX_PORT LED_2_GPIO_Port
+#define LED_CH0_RX_PIN LED_2_Pin
 
-// #define LED_CH0_RX_PORT GPIOE
-// #define LED_CH0_RX_PIN GPIO_PIN_2 // LED_2 (PE2)
-
-// #define LED_CH1_TX_PORT GPIOE
-// #define LED_CH1_TX_PIN GPIO_PIN_2 // LED_2 (PE2)
-
-// #define LED_CH1_RX_PORT GPIOE
-// #define LED_CH1_RX_PIN GPIO_PIN_2 // LED_2 (PE2)
+#define LED_CH1_TX_PORT LED_2_GPIO_Port
+#define LED_CH1_TX_PIN LED_2_Pin
+#define LED_CH1_RX_PORT LED_2_GPIO_Port
+#define LED_CH1_RX_PIN LED_2_Pin
 
 /* LED polarity (active high) */
 #define LED_ON GPIO_PIN_SET

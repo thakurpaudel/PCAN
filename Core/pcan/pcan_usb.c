@@ -1,8 +1,10 @@
 #include "pcan_usb.h"
+#include "pcanpro_led.h" // Added include for LED control
 #include "pcanpro_usbd.h"
 #include "usbd_core.h"
 #include "usbd_desc.h"
 #include <assert.h>
+#include <string.h> // For memcpy
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 extern USBD_DescriptorsTypeDef FS_Desc;
@@ -81,7 +83,7 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
         return 0;
       }
 
-      if (HAL_GetTick() - last_busy_print > 1000) {
+      if (HAL_GetTick() - last_busy_print > 2000) { // Rate limit to every 2s
         printf("PCAN TX Busy: EP=0x%02X\r\n", pfsm->ep_addr);
         last_busy_print = HAL_GetTick();
       }
@@ -114,4 +116,29 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
   }
 
   return 0;
+}
+
+/**
+ * @brief Sets the state of LEDs based on a 4-bit mask.
+ *        Bit 0 controls LED_CH0_RX
+ *        Bit 1 controls LED_CH1_RX
+ *        Bit 2 controls LED_CH0_TX
+ *        Bit 3 controls LED_CH1_TX
+ * @param led_mask A 4-bit value where each bit corresponds to an LED.
+ */
+void pcan_usb_set_leds_from_bitmask(uint8_t led_mask) {
+  // Array to map bit position to e_pcan_led enum values
+  // Assuming this mapping based on common practice and enum definition
+  int led_map[] = {LED_CH0_RX, LED_CH1_RX, LED_CH0_TX, LED_CH1_TX};
+  const int num_leds_to_control = sizeof(led_map) / sizeof(led_map[0]);
+
+  for (int i = 0; i < num_leds_to_control; i++) {
+    if ((led_mask >> i) & 0x01) {
+      // Bit is set, turn LED ON
+      pcan_led_set_mode(led_map[i], LED_MODE_ON, 0);
+    } else {
+      // Bit is not set, turn LED OFF
+      pcan_led_set_mode(led_map[i], LED_MODE_OFF, 0);
+    }
+  }
 }

@@ -65,10 +65,9 @@ static void MPU_Config(void);
 #include "pcanpro_led.h"
 #include "pcanpro_protocol.h"
 #include "pcanpro_timestamp.h"
+#include "pcanpro_usbd.h"
 #include <stdio.h>
 #include <string.h>
-
-extern UART_HandleTypeDef huart1;
 
 extern UART_HandleTypeDef huart1;
 
@@ -132,9 +131,18 @@ int main(void) {
   pcan_protocol_init();
   pcan_usb_device_init();
 
-  // Initialize CAN channels with CAN-FD support
+  // Initialize CAN channels based on build mode
+#if PCAN_SUPPORTS_FD
+  // CAN-FD mode: 500kbps nominal, 2Mbps data
   pcan_can_init_fd(CAN_BUS_1, 500000, 2000000);
   pcan_can_init_fd(CAN_BUS_2, 500000, 2000000);
+  printf("Mode: CAN-FD (500k/2M)\r\n");
+#else
+  // Classic CAN mode: 500kbps
+  pcan_can_init(CAN_BUS_1, 500000);
+  pcan_can_init(CAN_BUS_2, 500000);
+  printf("Mode: Classic CAN (500k)\r\n");
+#endif
 
   /* USER CODE END 2 */
 

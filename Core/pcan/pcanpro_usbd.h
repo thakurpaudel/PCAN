@@ -22,7 +22,17 @@
 #define PCAN_USB_EP_MSGIN_CH2 0x83
 
 /* Board-specific packet sizes based on build configuration */
-#if defined(PCAN_PRO_FD) || defined(PCAN_FD) || defined(PCAN_X6)
+/* Classic CAN Mode - PCAN_PRO or PCAN_CLASSIC_MODE */
+#if defined(PCAN_PRO) || defined(PCAN_CLASSIC_MODE)
+#define PCAN_DATA_PACKET_SIZE (64)
+#define PCAN_CMD_PACKET_SIZE (512)
+#define PCAN_SUPPORTS_FD (0)
+#define PCAN_PRODUCT_ID PCAN_USBPRO_PRODUCT_ID
+#define PCAN_PRODUCT_STRING "PCAN-USB Pro"
+#define PCAN_NUM_CHANNELS (2)
+
+/* CAN-FD Mode - PCAN_PRO_FD, PCAN_FD, or PCAN_X6 */
+#elif defined(PCAN_PRO_FD) || defined(PCAN_FD) || defined(PCAN_X6)
 #define PCAN_DATA_PACKET_SIZE (256)
 #define PCAN_CMD_PACKET_SIZE (128)
 #define PCAN_SUPPORTS_FD (1)
@@ -40,14 +50,6 @@
 #define PCAN_PRODUCT_STRING "PCAN-USB X6"
 #define PCAN_NUM_CHANNELS (2)
 #endif
-
-#elif defined(PCAN_PRO)
-#define PCAN_DATA_PACKET_SIZE (64)
-#define PCAN_CMD_PACKET_SIZE (512)
-#define PCAN_SUPPORTS_FD (0)
-#define PCAN_PRODUCT_ID PCAN_USBPRO_PRODUCT_ID
-#define PCAN_PRODUCT_STRING "PCAN-USB Pro"
-#define PCAN_NUM_CHANNELS (2)
 
 #else
 #error                                                                         \
