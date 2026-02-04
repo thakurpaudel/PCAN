@@ -132,13 +132,6 @@ int main(void) {
   pcan_protocol_init();
   pcan_usb_device_init();
 
-  // Note: CAN initialization is handled by pcan_protocol_init()
-  // which sets up filters and RX/TX callbacks properly
-#if PCAN_SUPPORTS_FD
-  printf("Mode: CAN-FD Ready\r\n");
-#else
-  printf("Mode: Classic CAN Ready\r\n");
-#endif
 
   // Initialize test module for periodic CAN message transmission
   pcan_test_init();
@@ -153,7 +146,7 @@ int main(void) {
     /* USER CODE BEGIN 3 */
     pcan_usb_device_poll();
     pcan_can_poll();
-    pcan_test_poll();     // Add test messages to buffer FIRST
+    // pcan_test_poll();     // Add test messages to buffer FIRST
     pcan_protocol_poll(); // Then flush the buffers to USB
     pcan_led_poll();
   }
