@@ -208,8 +208,10 @@ int pcan_protocol_rx_frame(uint8_t channel, struct t_can_msg *pmsg) {
   };
   struct ucan_rx_msg *pcan_msg = pcan_data_alloc_buffer(
       channel + 1, UCAN_MSG_CAN_RX, sizeof(struct ucan_rx_msg) + pmsg->size);
-  if (!pcan_msg)
+  if (!pcan_msg) {
+    printf("ERROR:: pcan_data_alloc_buffer failed\r\n");
     return -1;
+  }
 
   if (!(pmsg->flags & MSG_FLAG_ECHO)) {
     uint32_t nqt = pcan_device.can[channel].nominal_qt;
@@ -621,8 +623,8 @@ void pcan_protocol_poll(void) {
         // printf("USB TX: EP=0x%02X OK size=%d\\r\\n", resp_fsm[i].ep_addr,
         //        flush_size);
       } else {
-      //   printf("USB TX: EP=0x%02X FAIL size=%d pos=%d\\r\\n",
-      //          resp_fsm[i].ep_addr, flush_size, data_pos[i]);
+        //   printf("USB TX: EP=0x%02X FAIL size=%d pos=%d\\r\\n",
+        //          resp_fsm[i].ep_addr, flush_size, data_pos[i]);
       }
     }
   }
