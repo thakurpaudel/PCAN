@@ -658,7 +658,7 @@ static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
     rx_location = FDCAN_RX_FIFO1;
 
   if (HAL_FDCAN_GetRxMessage(hcan, rx_location, &hdr, msg.data) != HAL_OK) {
-    printf("CAN%d: GetRxMessage FAILED (FIFO%d)\r\n", bus + 1, fifo);
+    printf("CAN%d: GetRxMessage FAILED (FIFO%ld)\r\n", bus + 1, fifo);
     return;
   }
 
@@ -744,28 +744,28 @@ void pcan_can_poll(void) {
   pcan_can_flush_tx(CAN_BUS_2);
 
   // Periodic CAN bus status debug (every 5 seconds)
-  static uint32_t last_status_print = 0;
-  if ((ts_ms - last_status_print) > 5000) {
-    last_status_print = ts_ms;
-    for (int i = 0; i < CAN_BUS_TOTAL; i++) {
-      FDCAN_HandleTypeDef *pcan = can_dev_array[i].dev;
-      if (!pcan)
-        continue;
+  // static uint32_t last_status_print = 0;
+  // if ((ts_ms - last_status_print) > 5000) {
+  //   last_status_print = ts_ms;
+  //   for (int i = 0; i < CAN_BUS_TOTAL; i++) {
+  //     FDCAN_HandleTypeDef *pcan = can_dev_array[i].dev;
+  //     if (!pcan)
+  //       continue;
       
-      uint32_t psr = pcan->Instance->PSR;
-      uint32_t fifo0 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO0);
-      uint32_t fifo1 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO1);
-      uint32_t tx_free = HAL_FDCAN_GetTxFifoFreeLevel(pcan);
+  //     // uint32_t psr = pcan->Instance->PSR;
+  //     // uint32_t fifo0 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO0);
+  //     // uint32_t fifo1 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO1);
+  //     // uint32_t tx_free = HAL_FDCAN_GetTxFifoFreeLevel(pcan);
       
-      // printf("==== CAN%d Status ====\r\n", i + 1);
-      // printf("  PSR: 0x%08lX\r\n", psr);
-      // printf("  FIFO0: %lu msg, FIFO1: %lu msg\r\n", fifo0, fifo1);
-      // printf("  TX Free: %lu\r\n", tx_free);
-      // printf("  RX: %lu, TX: %lu, ERR: %lu, OVF: %lu\r\n",
-      //        can_dev_array[i].rx_msgs, can_dev_array[i].tx_msgs,
-      //        can_dev_array[i].tx_errs, can_dev_array[i].rx_ovfs);
-    }
-  }
+  //     // printf("==== CAN%d Status ====\r\n", i + 1);
+  //     // printf("  PSR: 0x%08lX\r\n", psr);
+  //     // printf("  FIFO0: %lu msg, FIFO1: %lu msg\r\n", fifo0, fifo1);
+  //     // printf("  TX Free: %lu\r\n", tx_free);
+  //     // printf("  RX: %lu, TX: %lu, ERR: %lu, OVF: %lu\r\n",
+  //     //        can_dev_array[i].rx_msgs, can_dev_array[i].tx_msgs,
+  //     //        can_dev_array[i].tx_errs, can_dev_array[i].rx_ovfs);
+  //   }
+  // }
 
   // Error status checking (every 250ms)
   if ((uint32_t)(ts_ms - err_last_check) > 250) {

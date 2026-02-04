@@ -49,51 +49,9 @@ void pcan_usb_device_init(void) {
 
 // Polling mode - manually call IRQ handler
 void pcan_usb_device_poll(void) {
-  // static uint32_t last_clear = 0;
-  // USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
-  // struct t_class_data *p_data = (void *)pdev->pClassData;
-
   // Call HAL IRQ handler for USB events
   HAL_PCD_IRQHandler((PCD_HandleTypeDef *)hUsbDeviceFS.pData);
 
-  // static uint32_t last_reg_dump = 0;
-  // if (HAL_GetTick() - last_reg_dump > 1000) {
-  //   last_reg_dump = HAL_GetTick();
-  //   uint32_t USBx_BASE = (uint32_t)USB_OTG_FS;
-  //   USB_OTG_GlobalTypeDef *USBx = USB_OTG_FS;
-  //   uint32_t gintsts = USBx->GINTSTS;
-  //   uint32_t daint = USBx_DEVICE->DAINT;
-  //   uint32_t diepint2 = USBx_INEP(2)->DIEPINT;
-
-    // Print only if interesting (IEPINT or EP2 activity)
-    // or simply print periodically to see if ANY interrupt is pending
-    // printf("USB REGS: GINTSTS=0x%08X DAINT=0x%08X DIEPINT2=0x%08X\r\n",
-    // gintsts, daint, diepint2);
-
-    // If BUSY is stuck, let's see why
-  //   if (p_data && p_data->ep_tx_in_use[2]) {
-  //     printf("USB STUCK EP2: GINTSTS=0x%08X DAINT=0x%08X DIEPINT2=0x%08X "
-  //            "DIEPCTL2=0x%08X\r\n",
-  //            gintsts, daint, diepint2, USBx_INEP(2)->DIEPCTL);
-  //   }
-  // }
-
-  // SOLUTION: Aggressively clear stuck TX endpoint flags
-  // The HAL_PCD_IRQHandler in polling mode doesn't reliably trigger DataIn
-  // callbacks So we forcibly clear endpoint busy flags to prevent permanent
-  // stalls
-  // uint32_t now = HAL_GetTick();
-  // if (p_data && (now - last_clear) >= 50) { // Every 50ms
-  //   last_clear = now;
-
-  //   // Force clear all TX endpoint busy flags (EP1=CMD, EP2=CH1, EP3=CH2)
-  //   for (int ep = 1; ep <= 3; ep++) {
-  //     if (p_data->ep_tx_in_use[ep]) {
-  //       printf("USB WARN: Force Clear EP%d\r\n", ep);
-  //       p_data->ep_tx_in_use[ep] = 0;
-  //     }
-  //   }
-  // }
 }
 
 uint16_t pcan_usb_frame_number(void) {
