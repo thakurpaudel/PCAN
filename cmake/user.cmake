@@ -36,6 +36,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     # ${CMAKE_SOURCE_DIR}/Core/Src/main.cpp  # Not used - using main.c instead
     ${CMAKE_SOURCE_DIR}/Core/Src/wchar_stubs.c
 
+
     # PCAN sources
     ${CMAKE_SOURCE_DIR}/Core/pcan/pcanpro_can.c
     ${CMAKE_SOURCE_DIR}/Core/pcan/pcanpro_led.c
@@ -45,3 +46,19 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Core/pcan/pcan_usb.c
 
 )
+
+# Validates that CMAKE_OBJCOPY is set, otherwise tries to find it
+if(NOT CMAKE_OBJCOPY)
+    message(STATUS "Searching for objcopy...")
+    find_program(CMAKE_OBJCOPY NAMES arm-none-eabi-objcopy objcopy)
+endif()
+
+if(CMAKE_OBJCOPY)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin
+        COMMAND ${CMAKE_OBJCOPY} -O ihex ${PROJECT_NAME}.elf ${PROJECT_NAME}.hex
+        COMMENT "Generating .bin and .hex files..."
+    )
+else()
+    message(WARNING "objcopy not found. .bin and .hex files will not be generated automatically.")
+endif()

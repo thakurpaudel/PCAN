@@ -1,306 +1,110 @@
-# PCAN-USB Pro FD Adapter
+# PCAN-USB Pro FD Adapter Firmware
 
-A high-performance CAN/CAN-FD to USB adapter based on the STM32H743ZIT6 microcontroller, compatible with PEAK PCAN-USB Pro FD protocol.
+A high-performance, open-source firmware implementation for STM32H7 microcontrollers that emulates the PEAK PCAN-USB Pro FD adapter. This project enables STM32 hardware to interface with standard PCAN software tools (PCAN-View, PCAN-Explorer, etc.) via USB.
 
-## Features
+## 🚀 Features
 
-- **Dual CAN-FD Channels**: Two independent CAN-FD interfaces with up to 2.5 Mbps nominal bitrate
-- **USB 2.0 Full Speed**: Custom HID device class for cross-platform compatibility
-- **High Performance**: STM32H743 ARM Cortex-M7 @ 480 MHz
-- **CAN-FD Support**: Full support for CAN-FD protocol with flexible data rate
-- **Timestamp**: Hardware timestamping for precise message timing
-- **LED Indicators**: Visual feedback for CAN bus activity
+*   **Dual Channel Support**: Two independent CAN-FD channels (CAN1 & CAN2).
+*   **CAN-FD Ready**: Supports Flexible Data-rate (FD) and standard CAN 2.0B.
+*   **High Performance**: Powered by STM32H743 (Cortex-M7 @ 480 MHz).
+*   **USB 2.0 High Speed**: Utilizes STM32 USB OTG interface for low-latency communication.
+*   **Standard Compatibility**: 
+    *   Fully compatible with official PEAK drivers (Linux & Windows).
+    *   Works with PCAN-View and PCAN-Basic API.
+*   **Precise Timing**: Hardware-based timestamping for accurate message logging.
 
-## Hardware Specifications
+## 🛠 Hardware Specifications
 
-### Microcontroller
-- **MCU**: STM32H743ZIT6
-- **Core**: ARM Cortex-M7
-- **Frequency**: 480 MHz
-- **Flash**: 2 MB
-- **RAM**: 1 MB
-- **Package**: LQFP144
+This firmware is designed for the **STM32H743ZIT6** (Nucleo-144 or custom board).
 
-### Peripherals
-- **CAN Controllers**: 2x FDCAN (CAN-FD capable)
-  - FDCAN1: PD0 (RX), PD1 (TX)
-  - FDCAN2: PB5 (RX), PB6 (TX)
-- **USB**: USB OTG FS (PA11/PA12)
-- **Debug UART**: USART1 (PA9/PA10)
-- **Auxiliary UART**: UART4 (PC10/PC11)
-- **Timers**: TIM3, TIM8
-- **LEDs**: 
-  - LED_1: PC7
-  - LED_2: PE2
+| Feature | Pin | Description |
+| :--- | :--- | :--- |
+| **USB** | `PA11` (DM), `PA12` (DP) | USB OTG FS (used as device) |
+| **CAN1** | `PD0` (RX), `PD1` (TX) | FDCAN1 Interface |
+| **CAN2** | `PB5` (RX), `PB6` (TX) | FDCAN2 Interface |
+| **LED 1** | `PC7` | Activity Indicator (Channel 1) |
+| **LED 2** | `PE2` | Activity Indicator (Channel 2) |
+| **Debug** | `PA9` (TX), `PA10` (RX) | USART1 for printf logs (115200 8N1) |
 
-### Clock Configuration
-- **CPU Clock**: 480 MHz
-- **AHB Clock**: 240 MHz
-- **APB1/2/3/4**: 120 MHz
-- **FDCAN Clock**: 120 MHz
-- **USB Clock**: 48 MHz (HSI48)
-
-## Project Structure
+## 📦 Project Structure
 
 ```
 PCAN/
-├── Core/
-│   ├── Inc/              # STM32 HAL headers
-│   ├── Src/              # STM32 HAL initialization code
-│   └── pcan/             # PCAN-specific implementation
-│       ├── pcanpro_can.c/h           # CAN driver abstraction
-│       ├── pcanpro_protocol.c/h      # USB protocol handler
-│       ├── pcanpro_fd_protocol.c     # CAN-FD protocol
-│       ├── pcanpro_usbd.c/h          # USB device interface
-│       ├── pcanpro_led.c/h           # LED control
-│       └── pcanpro_timestamp.c/h     # Timestamp management
-├── Drivers/              # STM32 HAL drivers
-├── Middlewares/          # USB middleware
-├── USB_DEVICE/           # USB device stack
-├── cmake/                # CMake configuration
-├── CMakeLists.txt        # Main CMake file
-└── PCAN.ioc              # STM32CubeMX project file
-
+├── CMakeLists.txt         # Root build configuration
+├── Core/                  # Main application source
+│   ├── pcan/              # PCAN Protocol Implementation
+│   └── Src/               # STM32 HAL Callbacks & Init
+├── Drivers/               # STM32 HAL & Low-Layer Drivers
+├── Middlewares/           # USB Device Library
+├── USB_DEVICE/            # USB Class & Descriptor configurations
+└── cmake/                 # Build scripts & toolchain files
 ```
 
-## Prerequisites
+## 🔨 Build Instructions
 
-### Software Requirements
-- **CMake**: Version 3.22 or higher
-- **ARM GCC Toolchain**: arm-none-eabi-gcc
-- **STM32CubeMX**: (optional) For regenerating peripheral initialization code
-- **OpenOCD** or **STM32CubeProgrammer**: For flashing
+### Prerequisites
+*   **CMake** (3.22+)
+*   **ARM GCC Toolchain** (`arm-none-eabi-gcc`)
+*   **Make** or **Ninja**
 
-### Installing ARM GCC Toolchain
-
-**Ubuntu/Debian:**
+### 1. Clone the Repository
 ```bash
-sudo apt-get update
-sudo apt-get install gcc-arm-none-eabi binutils-arm-none-eabi cmake
+git clone https://github.com/thakurpaudel/PCAN-STM32H7.git
+cd PCAN
 ```
 
-**macOS:**
+### 2. Configure with CMake
+You can choose between **Classic CAN** (default) or **CAN-FD** mode.
+
+**For Standard CAN-FD Mode (Recommended):**
 ```bash
-brew install --cask gcc-arm-embedded
-brew install cmake
+cmake -B build -DPCAN_CAN_FD_MODE=ON
 ```
 
-**Windows:**
-- Download from [ARM Developer](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm)
-- Install CMake from [cmake.org](https://cmake.org/download/)
-
-## Building the Project
-
-### Using CMake (Recommended)
-
-1. **Clone the repository:**
-   ```bash
-   cd /home/thakur/Documents/yatri/PCAN
-   ```
-
-2. **Create build directory:**
-   ```bash
-   mkdir -p build
-   cd build
-   ```
-
-3. **Configure the project:**
-   ```bash
-   cmake ..
-   ```
-
-4. **Build:**
-   ```bash
-   cmake --build .
-   ```
-
-   Or for parallel build:
-   ```bash
-   cmake --build . -j$(nproc)
-   ```
-
-5. **Output files:**
-   - `build/PCAN.elf` - ELF executable
-   - `build/PCAN.bin` - Binary file for flashing
-   - `build/PCAN.hex` - Intel HEX file
-
-### Build Configurations
-
-**Debug Build (default):**
+**For Legacy Classic CAN Mode:**
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-cmake --build .
+cmake -B build -DPCAN_CAN_FD_MODE=OFF
 ```
 
-**Release Build:**
+### 3. Compile
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build .
+cmake --build build -j$(nproc)
 ```
 
-### Using Makefile
+### 4. Output Files
+The build process automatically generates the following in the `build/` directory:
+*   `PCAN.elf`: The main executable (with debug symbols).
+*   `PCAN.bin`: Binary file for flashing.
+*   `PCAN.hex`: Intel HEX file for flashing.
 
-Alternatively, you can use the generated Makefile:
-```bash
-make -j$(nproc)
-```
-
-## Flashing the Firmware
-
-### Using OpenOCD
-
-```bash
-openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
-  -c "program build/PCAN.elf verify reset exit"
-```
+## ⚡ Flashing
 
 ### Using STM32CubeProgrammer
-
 ```bash
 STM32_Programmer_CLI -c port=SWD -w build/PCAN.bin 0x08000000 -v -rst
 ```
 
-### Using st-flash
-
+### Using OpenOCD
 ```bash
-st-flash write build/PCAN.bin 0x8000000
+openocd -f interface/stlink.cfg -f target/stm32h7x.cfg -c "program build/PCAN.elf verify reset exit"
 ```
 
-## Usage
+## 🔌 Usage
 
-### Connecting to PC
+1.  **Connect** the STM32 board to your PC via the USB User port.
+2.  **Verify Enumeration**:
+    *   **Unux**: Run `lsusb`. You should see a generic or PEAK device.
+        *   *Note: On Linux, `socketcan` should automatically pick it up if you use the peak-linux-driver.*
+    *   **Windows**: Device Manager should show "PCAN-USB Pro FD" (if drivers are installed).
+3.  **Open PCAN-View**:
+    *   Select the device from the list.
+    *   Initialize the bitrate (e.g., 500 kbit/s / 2 Mbit/s Data).
+    *   You should now see TX/RX traffic.
 
-1. Connect the USB cable to your computer
-2. The device should enumerate as a USB HID device
-3. Use PCAN-compatible software to communicate with CAN buses
+## 🤝 Contributing
 
-### CAN Bus Connections
+Contributions are welcome! Please format code according to the project's `.clang-format` style.
 
-**FDCAN1:**
-- CAN_H: Connect to CAN bus high line
-- CAN_L: Connect to CAN bus low line
-- Add 120Ω termination resistor if needed
+## 📄 License
 
-**FDCAN2:**
-- CAN_H: Connect to second CAN bus high line
-- CAN_L: Connect to second CAN bus low line
-- Add 120Ω termination resistor if needed
-
-### LED Indicators
-
-- **LED_1 (PC7)**: CAN1 activity
-- **LED_2 (PE2)**: CAN2 activity
-
-## Development
-
-### Code Style
-
-- **C Standard**: C11
-- **C++ Standard**: C++17 (for future extensions)
-- **Indentation**: Spaces (configured in `.clangd`)
-
-### Modifying Hardware Configuration
-
-1. Open `PCAN.ioc` in STM32CubeMX
-2. Make your changes
-3. Regenerate code
-4. Rebuild the project
-
-### Adding Custom Code
-
-Use the `USER CODE BEGIN` and `USER CODE END` sections in generated files to add custom code that won't be overwritten by STM32CubeMX.
-
-## Debugging
-
-### Using GDB with OpenOCD
-
-1. **Start OpenOCD:**
-   ```bash
-   openocd -f interface/stlink.cfg -f target/stm32h7x.cfg
-   ```
-
-2. **In another terminal, start GDB:**
-   ```bash
-   arm-none-eabi-gdb build/PCAN.elf
-   ```
-
-3. **Connect to OpenOCD:**
-   ```
-   (gdb) target extended-remote localhost:3333
-   (gdb) monitor reset halt
-   (gdb) load
-   (gdb) continue
-   ```
-
-### Serial Debug Output
-
-Connect to USART1 (PA9/PA10) at 115200 baud for debug output.
-
-## Protocol Documentation
-
-This adapter implements the PCAN-USB Pro FD protocol, compatible with:
-- PCAN-View
-- PCAN-Explorer
-- SocketCAN (Linux)
-- PCAN-Basic API
-
-### Key Features
-
-- **Message Filtering**: Hardware CAN ID filtering
-- **Timestamps**: 32-bit microsecond timestamps
-- **Error Frames**: Full error frame reporting
-- **Bus Statistics**: TX/RX message counts, error counts
-
-## Troubleshooting
-
-### Build Issues
-
-**Problem**: `arm-none-eabi-gcc not found`
-- **Solution**: Install ARM GCC toolchain (see Prerequisites)
-
-**Problem**: CMake configuration fails
-- **Solution**: Ensure CMake version is 3.22 or higher
-
-### Flashing Issues
-
-**Problem**: Cannot connect to target
-- **Solution**: Check ST-Link connection, ensure jumpers are set correctly
-
-**Problem**: Flash verification failed
-- **Solution**: Erase flash completely before programming
-
-### Runtime Issues
-
-**Problem**: USB device not recognized
-- **Solution**: Check USB cable, try different USB port, verify USB clock configuration
-
-**Problem**: CAN messages not received
-- **Solution**: Check CAN bus termination, verify bitrate settings, check wiring
-
-## License
-
-Copyright (c) 2026 STMicroelectronics.
-All rights reserved.
-
-This software is licensed under terms that can be found in the LICENSE file in the root directory of this software component.
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Support
-
-For issues and questions:
-- Open an issue on GitHub
-- Check the [STM32H7 Reference Manual](https://www.st.com/resource/en/reference_manual/rm0433-stm32h742-stm32h743753-and-stm32h750-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf)
-- Consult [PCAN-USB Pro FD documentation](https://www.peak-system.com/PCAN-USB-Pro-FD.366.0.html)
-
-## Acknowledgments
-
-- STMicroelectronics for STM32 HAL libraries
-- PEAK-System for PCAN protocol documentation
-- ARM for CMSIS libraries
+This software component is licensed by STMicroelectronics under the BSD-3-Clause license, requiring preservation of copyright notices. PCAN protocol compatibility is provided for educational and interoperability purposes.
