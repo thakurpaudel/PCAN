@@ -757,13 +757,13 @@ void pcan_can_poll(void) {
       uint32_t fifo1 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO1);
       uint32_t tx_free = HAL_FDCAN_GetTxFifoFreeLevel(pcan);
       
-      printf("==== CAN%d Status ====\r\n", i + 1);
-      printf("  PSR: 0x%08lX\r\n", psr);
-      printf("  FIFO0: %lu msg, FIFO1: %lu msg\r\n", fifo0, fifo1);
-      printf("  TX Free: %lu\r\n", tx_free);
-      printf("  RX: %lu, TX: %lu, ERR: %lu, OVF: %lu\r\n",
-             can_dev_array[i].rx_msgs, can_dev_array[i].tx_msgs,
-             can_dev_array[i].tx_errs, can_dev_array[i].rx_ovfs);
+      // printf("==== CAN%d Status ====\r\n", i + 1);
+      // printf("  PSR: 0x%08lX\r\n", psr);
+      // printf("  FIFO0: %lu msg, FIFO1: %lu msg\r\n", fifo0, fifo1);
+      // printf("  TX Free: %lu\r\n", tx_free);
+      // printf("  RX: %lu, TX: %lu, ERR: %lu, OVF: %lu\r\n",
+      //        can_dev_array[i].rx_msgs, can_dev_array[i].tx_msgs,
+      //        can_dev_array[i].tx_errs, can_dev_array[i].rx_ovfs);
     }
   }
 

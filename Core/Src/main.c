@@ -152,7 +152,7 @@ int main(void) {
 
     /* USER CODE BEGIN 3 */
     pcan_usb_device_poll();
-    // pcan_can_poll();
+    pcan_can_poll();
     pcan_test_poll();     // Add test messages to buffer FIRST
     pcan_protocol_poll(); // Then flush the buffers to USB
     pcan_led_poll();
