@@ -81,8 +81,11 @@ void *pcan_data_alloc_buffer(uint8_t ep_idx, uint16_t type, uint16_t size) {
   if (ep_idx >= PROTO_BUFFERS)
     return NULL;
   uint16_t aligned_size = (size + (4 - 1)) & (~(4 - 1));
-  if (PCAN_USB_DATA_BUFFER_SIZE < (aligned_size + data_pos[ep_idx] + 4))
+  if (PCAN_USB_DATA_BUFFER_SIZE < (aligned_size + data_pos[ep_idx] + 4)) {
+    printf("USB ERR: Buffer full EP%d! Pos=%d, Req=%d\r\n", ep_idx,
+           data_pos[ep_idx], aligned_size);
     return (void *)0;
+  }
   struct ucan_msg *pmsg = (void *)&data_buffer[ep_idx][data_pos[ep_idx]];
 
   pmsg->size = aligned_size;

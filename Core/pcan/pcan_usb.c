@@ -4,6 +4,7 @@
 #include "usbd_core.h"
 #include "usbd_desc.h"
 #include <assert.h>
+#include <stdio.h>
 #include <string.h> // For memcpy
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
@@ -51,17 +52,18 @@ void pcan_usb_device_poll(void) {
   static uint32_t last_clear = 0;
   USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
   struct t_class_data *p_data = (void *)pdev->pClassData;
-  
+
   // Call HAL IRQ handler for USB events
   HAL_PCD_IRQHandler((PCD_HandleTypeDef *)hUsbDeviceFS.pData);
-  
+
   // SOLUTION: Aggressively clear stuck TX endpoint flags
-  // The HAL_PCD_IRQHandler in polling mode doesn't reliably trigger DataIn callbacks
-  // So we forcibly clear endpoint busy flags to prevent permanent stalls
+  // The HAL_PCD_IRQHandler in polling mode doesn't reliably trigger DataIn
+  // callbacks So we forcibly clear endpoint busy flags to prevent permanent
+  // stalls
   uint32_t now = HAL_GetTick();
-  if (p_data && (now - last_clear) >= 50) {  // Every 50ms
+  if (p_data && (now - last_clear) >= 50) { // Every 50ms
     last_clear = now;
-    
+
     // Force clear all TX endpoint busy flags (EP1=CMD, EP2=CH1, EP3=CH2)
     for (int ep = 1; ep <= 3; ep++) {
       if (p_data->ep_tx_in_use[ep]) {
@@ -90,20 +92,28 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
   USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
   struct t_class_data *p_data = (void *)pdev->pClassData;
 
-  if (!p_data)
+  if (!p_data) {
+    printf("USB ERR: p_data is NULL\r\n");
     return 0;
+  }
 
   switch (pfsm->state) {
   case 1:
-    if (p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F])
+    if (p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F]) {
+      // Still busy
+      // printf("USB BUSY: EP=0x%02X\r\n", pfsm->ep_addr); // Commented to avoid
+      // spam, uncomment if needed
       return 0;
+    }
     pfsm->state = 0;
     /* fall through */
   case 0:
     assert(p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] == 0);
     // size = (size+(64-1))&(~(64-1));
-    if (size > pfsm->dbsize)
+    if (size > pfsm->dbsize) {
+      printf("USB ERR: Size too large %d > %ld\r\n", size, pfsm->dbsize);
       break;
+    }
     memcpy(pfsm->pdbuf, src, size);
     p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 1;
     /* prepare data transmit */
