@@ -87,7 +87,7 @@ void pcan_test_poll(void) {
   uint32_t current_time = HAL_GetTick();
 
   // Send messages every 5000 ms (5 seconds)
-  if ((current_time - last_send_time) >= 5000) {
+  if ((current_time - last_send_time) >= 1) {
     last_send_time = current_time;
 
     // --- Channel 1 Test Message ---
