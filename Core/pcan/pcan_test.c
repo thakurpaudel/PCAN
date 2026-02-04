@@ -47,9 +47,9 @@ static void send_test_message(uint8_t channel, uint32_t can_id,
   int result = pcan_protocol_rx_frame(channel, &msg);
 
   if (result == 0) {
-    printf("Test: OK CH%d ID=0x%03X\\r\\n", channel + 1, (unsigned int)can_id);
+    printf("Test: OK CH%d ID=0x%03X\r\n", channel + 1, (unsigned int)can_id);
   } else {
-    printf("Test: ERR CH%d=%d\\r\\n", channel + 1, result);
+    printf("Test: ERR CH%d=%d\r\n", channel + 1, result);
   }
 }
 
@@ -62,7 +62,7 @@ void pcan_test_init(void) {
   message_counter_ch2 = 0;
   driver_ready = 0;
 
-  printf("PCAN Test: Init\\r\\n");
+  printf("PCAN Test: Init\r\n");
 }
 
 /**
@@ -73,7 +73,7 @@ void pcan_test_poll(void) {
   if (!pcan_protocol_is_driver_loaded()) {
     if (!driver_ready) {
       driver_ready = 1;
-      printf("Test: Waiting for PC driver...\\r\\n");
+      printf("Test: Waiting for PC driver...\r\n");
     }
     return;
   }
@@ -81,7 +81,7 @@ void pcan_test_poll(void) {
   // Announce driver is ready (once)
   if (driver_ready == 1) {
     driver_ready = 2;
-    printf("Test: PC driver loaded! Starting test messages\\r\\n");
+    printf("Test: PC driver loaded! Starting test messages\r\n");
   }
 
   uint32_t current_time = HAL_GetTick();
@@ -114,7 +114,7 @@ void pcan_test_poll(void) {
     send_test_message(1, 0x456, test_data_ch2, 8);
     message_counter_ch2++;
 
-    printf("Test: #%u/%u\\r\\n", (unsigned int)message_counter_ch1,
+    printf("Test: #%u/%u\r\n", (unsigned int)message_counter_ch1,
            (unsigned int)message_counter_ch2);
   }
 }
