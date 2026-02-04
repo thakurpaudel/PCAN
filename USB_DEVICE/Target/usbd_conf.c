@@ -31,6 +31,7 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+PCD_HandleTypeDef hpcd_usb; // Global handle for Interrupt Mode
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 

@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.22)
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 # STM32CubeMX generated symbols (macros)
-set(MX_Defines_Syms 
-	USE_PWR_LDO_SUPPLY 
-	USE_HAL_DRIVER 
-	STM32H743xx
+set(MX_Defines_Syms
+    USE_PWR_LDO_SUPPLY
+    USE_HAL_DRIVER
+    STM32H743xx
     $<$<CONFIG:Debug>:DEBUG>
 )
 
@@ -25,6 +25,7 @@ set(MX_Include_Dirs
 # STM32CubeMX generated application sources
 set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../USB_DEVICE/Target/usbd_conf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/pcan/pcan_test.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../USB_DEVICE/App/usb_device.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../USB_DEVICE/App/usbd_desc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../USB_DEVICE/App/usbd_custom_hid_if.c
@@ -84,10 +85,11 @@ set(MX_LINK_DIRS
 
 )
 # Project static libraries
-set(MX_LINK_LIBS 
+set(MX_LINK_LIBS
     STM32_Drivers
     ${TOOLCHAIN_LINK_LIBRARIES}
-    USB_Device_Library	
+    USB_Device_Library
+
 )
 # Interface library for includes and symbols
 add_library(stm32cubemx INTERFACE)

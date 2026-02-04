@@ -67,7 +67,7 @@ static struct {
     .can[1] = {.channel_nr = 0xFFFFFFFF, .can_clock = 120000000u},
 };
 
-#define PCAN_USB_DATA_BUFFER_SIZE 512
+#define PCAN_USB_DATA_BUFFER_SIZE 2048
 #define PROTO_BUFFERS 3
 static uint8_t resp_buffer[PROTO_BUFFERS][PCAN_USB_DATA_BUFFER_SIZE]
     __attribute__((section(".usb_buffers")));
@@ -618,6 +618,11 @@ void pcan_protocol_poll(void) {
       if (res) {
         data_pos[i] = 0;
         pcan_device.last_time_flush = ts_us;
+        // printf("USB TX: EP=0x%02X OK size=%d\\r\\n", resp_fsm[i].ep_addr,
+        //        flush_size);
+      } else {
+      //   printf("USB TX: EP=0x%02X FAIL size=%d pos=%d\\r\\n",
+      //          resp_fsm[i].ep_addr, flush_size, data_pos[i]);
       }
     }
   }
@@ -679,4 +684,9 @@ void pcan_protocol_poll(void) {
     /* 0 ... 100% => 0 ... 4095 */
     pbs->bus_load = (pcan_device.can[i].bus_load * 4095u) / 100u;
   }
+}
+
+// Helper function for test module
+uint8_t pcan_protocol_is_driver_loaded(void) {
+  return pcan_device.can_drv_loaded;
 }

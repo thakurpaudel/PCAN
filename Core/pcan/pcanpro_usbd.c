@@ -7,8 +7,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-static struct t_class_data pcanpro_data
-    __attribute__((section(".usb_buffers"))) = {0};
+static struct t_class_data pcanpro_data __attribute__((section(".usb_buffers"))) = {0};
 
 struct t_pcanpro_description {
   USB_CONFIGURATION_DESCRIPTOR con0;

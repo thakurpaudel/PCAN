@@ -60,6 +60,7 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#include "pcan_test.h"
 #include "pcan_usb.h"
 #include "pcanpro_can.h"
 #include "pcanpro_led.h"
@@ -139,6 +140,9 @@ int main(void) {
   printf("Mode: Classic CAN Ready\r\n");
 #endif
 
+  // Initialize test module for periodic CAN message transmission
+  pcan_test_init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -149,7 +153,8 @@ int main(void) {
     /* USER CODE BEGIN 3 */
     pcan_usb_device_poll();
     // pcan_can_poll();
-    pcan_protocol_poll();
+    pcan_test_poll();     // Add test messages to buffer FIRST
+    pcan_protocol_poll(); // Then flush the buffers to USB
     pcan_led_poll();
   }
   /* USER CODE END 3 */

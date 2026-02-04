@@ -24,6 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "usbd_conf.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,7 +58,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
+extern PCD_HandleTypeDef hpcd_usb; // Corrected handle name
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -192,9 +193,8 @@ void SysTick_Handler(void) {
 void OTG_FS_IRQHandler(void) {
   /* USER CODE BEGIN OTG_FS_IRQn 0 */
 
-  // printf("From the UBS::\n");
   /* USER CODE END OTG_FS_IRQn 0 */
-  // HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS); // Disabled for Polling Mode
+  HAL_PCD_IRQHandler(&hpcd_usb); // ENABLED for interrupt mode
   /* USER CODE BEGIN OTG_FS_IRQn 1 */
 
   /* USER CODE END OTG_FS_IRQn 1 */

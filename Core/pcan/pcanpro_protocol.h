@@ -10,3 +10,6 @@ void pcan_protocol_poll( void );
 void pcan_protocol_process_data( uint8_t ep, uint8_t *ptr, uint16_t size );
 void pcan_ep0_receive( void );
 uint8_t pcan_protocol_device_setup( USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req );
+
+// Helper to check if PC driver is loaded (for test module)
+uint8_t pcan_protocol_is_driver_loaded(void);

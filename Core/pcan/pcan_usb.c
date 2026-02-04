@@ -1,5 +1,5 @@
 #include "pcan_usb.h"
-#include "pcanpro_led.h" // Added include for LED control
+#include "pcanpro_led.h"
 #include "pcanpro_usbd.h"
 #include "usbd_core.h"
 #include "usbd_desc.h"
@@ -12,11 +12,17 @@ extern USBD_DescriptorsTypeDef FS_Desc;
 // available
 extern void Error_Handler(void);
 
+// Export usbd_dev for test module compatibility (points to hUsbDeviceFS)
+USBD_HandleTypeDef usbd_dev;
+
 #ifndef USB_MODULE_ID
 #define USB_MODULE_ID DEVICE_FS
 #endif
 
 void pcan_usb_device_init(void) {
+  // Initialize usbd_dev reference for test module
+  usbd_dev = hUsbDeviceFS;
+
   /* Init Device Library, add supported class and start the library. */
   if (USBD_Init(&hUsbDeviceFS, &FS_Desc, USB_MODULE_ID) != USBD_OK) {
     Error_Handler();
@@ -35,13 +41,34 @@ void pcan_usb_device_init(void) {
   if (USBD_Start(&hUsbDeviceFS) != USBD_OK) {
     Error_Handler();
   }
+
+  // Update after Start since USBD_Init may modify the structure
+  usbd_dev = hUsbDeviceFS;
 }
 
-// Polling usually logic for non-interrupt mode, but we use ISR
+// Polling mode - manually call IRQ handler
 void pcan_usb_device_poll(void) {
-  // HAL_PCD_IRQHandler(&hpcd_usb);
-  // Manual Polling Mode Enabled
+  static uint32_t last_clear = 0;
+  USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
+  struct t_class_data *p_data = (void *)pdev->pClassData;
+  
+  // Call HAL IRQ handler for USB events
   HAL_PCD_IRQHandler((PCD_HandleTypeDef *)hUsbDeviceFS.pData);
+  
+  // SOLUTION: Aggressively clear stuck TX endpoint flags
+  // The HAL_PCD_IRQHandler in polling mode doesn't reliably trigger DataIn callbacks
+  // So we forcibly clear endpoint busy flags to prevent permanent stalls
+  uint32_t now = HAL_GetTick();
+  if (p_data && (now - last_clear) >= 50) {  // Every 50ms
+    last_clear = now;
+    
+    // Force clear all TX endpoint busy flags (EP1=CMD, EP2=CH1, EP3=CH2)
+    for (int ep = 1; ep <= 3; ep++) {
+      if (p_data->ep_tx_in_use[ep]) {
+        p_data->ep_tx_in_use[ep] = 0;
+      }
+    }
+  }
 }
 
 uint16_t pcan_usb_frame_number(void) {
@@ -68,51 +95,24 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
 
   switch (pfsm->state) {
   case 1:
-    if (p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F]) {
-      static uint32_t last_busy_print = 0;
-      static uint32_t last_busy_time = 0;
-
-      if (last_busy_time == 0)
-        last_busy_time = HAL_GetTick();
-
-      if (HAL_GetTick() - last_busy_time > 500) { // 500ms timeout
-        printf("PCAN TX Timeout: EP=0x%02X - Force Clear\r\n", pfsm->ep_addr);
-        p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 0;
-        last_busy_time = 0;
-        pfsm->state = 0;
-        return 0;
-      }
-
-      if (HAL_GetTick() - last_busy_print > 2000) { // Rate limit to every 2s
-        printf("PCAN TX Busy: EP=0x%02X\r\n", pfsm->ep_addr);
-        last_busy_print = HAL_GetTick();
-      }
+    if (p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F])
       return 0;
-    }
     pfsm->state = 0;
-
     /* fall through */
   case 0:
     assert(p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] == 0);
     // size = (size+(64-1))&(~(64-1));
-    if (size > pfsm->dbsize) {
-      printf("PCAN TX Error: Size %d > DBSize %lu\r\n", size, pfsm->dbsize);
+    if (size > pfsm->dbsize)
       break;
-    }
     memcpy(pfsm->pdbuf, src, size);
+    p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 1;
     /* prepare data transmit */
     pdev->ep_in[pfsm->ep_addr & EP_ADDR_MSK].total_length = size;
+    USBD_LL_Transmit(pdev, pfsm->ep_addr, pfsm->pdbuf, size);
 
-    printf("PCAN TX Submit: EP=0x%02X Size=%d\r\n", pfsm->ep_addr, size);
-    if (USBD_LL_Transmit(pdev, pfsm->ep_addr, pfsm->pdbuf, size) == USBD_OK) {
-      p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F] = 1;
-      pfsm->total_tx += size;
-      pfsm->state = 1;
-      return 1;
-    } else {
-      printf("PCAN TX Failed (USB Busy): EP=0x%02X\r\n", pfsm->ep_addr);
-      return 0; // Try again next poll
-    }
+    pfsm->total_tx += size;
+    pfsm->state = 1;
+    return 1;
   }
 
   return 0;

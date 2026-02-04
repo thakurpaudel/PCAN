@@ -74,13 +74,10 @@ struct pcan_ufd_fw_info {
 static struct pcan_usbpro_bootloader_info bi_info
     __attribute__((aligned(4))) = {
         .ctrl_type = BOOTLOADER_INFO_STRUCT_TYPE,
-        .version[0] = 0,
-        .version[1] = 0,
-        .version[2] = 0,
-        .version[3] = 0,
-        .day = 0,
-        .month = 0,
-        .year = 0,
+        .version = {0, 0, 0, 0},
+        .day = 1,
+        .month = 1,
+        .year = 26,
         .dummy = 0,
         .serial_num_high = 200030,
         .serial_num_low = 1,
@@ -92,7 +89,7 @@ static struct pcan_ufd_fw_info fw_info __attribute__((aligned(4))) = {
     .size_of = 36,
     .type = PCAN_USBFD_TYPE_EXT,
     .hw_type = 0,
-    .bl_version = {0, 0, 0},
+    .bl_version = {1, 0, 0},
     .hw_version = 1,
     .fw_version = {1, 3, 3},
     .dev_id = 0,
@@ -101,7 +98,7 @@ static struct pcan_ufd_fw_info fw_info __attribute__((aligned(4))) = {
     .cmd_out_ep = 0x03,
     .cmd_in_ep = 0x83,
     .data_out_ep = 0x01 | (0x02 << 8), // EP1 and EP2
-    .data_in_ep = 0x81,                // Usually common for both channels?
+    .data_in_ep = 0x81,                
     .dummy = {0, 0, 0},
 };
 
@@ -170,220 +167,108 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
                                    USBD_SetupReqTypedef *req) {
   switch (req->bRequest) {
   case USB_VENDOR_REQUEST_INFO:
-    printf("PCAN: Vendor Info Request Val=0x%04X\r\n", req->wValue);
+    printf("PCAN: Info Req 0x%04X\r\n", req->wValue);
     switch (req->wValue) {
-    case USB_VENDOR_REQUEST_wVALUE_INFO_BOOTLOADER: {
-      return USBD_CtlSendData(pdev, (void *)&bi_info,
-                              sizeof(struct pcan_usbpro_bootloader_info));
-    }
-    case USB_VENDOR_REQUEST_wVALUE_INFO_FIRMWARE: {
-      return USBD_CtlSendData(pdev, (void *)&fw_info,
-                              sizeof(struct pcan_ufd_fw_info));
-    }
-    case USB_VENDOR_REQUEST_wVALUE_INFO_uC_CHIPID: {
-      return USBD_CtlSendData(pdev, (void *)&uc_chid_info,
-                              sizeof(struct pcan_usbpro_uc_chipid));
-    }
-    case USB_VENDOR_REQUEST_wVALUE_INFO_USB_CHIPID: {
-      return USBD_CtlSendData(pdev, (void *)&usb_chid_info,
-                              sizeof(struct pcan_usbpro_usb_chipid));
-    }
-    case USB_VENDOR_REQUEST_wVALUE_INFO_DEVICENR: {
-      return USBD_CtlSendData(pdev, (void *)&dev_nr_info,
-                              sizeof(struct pcan_usbpro_device_nr));
-    }
-    case USB_VENDOR_REQUEST_wVALUE_INFO_CPLD: {
-      return USBD_CtlSendData(pdev, (void *)&cpld_info,
-                              sizeof(struct pcan_usbpro_cpld_info));
-    }
-
-    case USB_VENDOR_REQUEST_wVALUE_INFO_MODE: {
-      return USBD_CtlSendData(pdev, (void *)&info_mode_data,
-                              sizeof(struct pcan_usbpro_info_mode));
-    }
-    case USB_VENDOR_REQUEST_wVALUE_INFO_TIMEMODE: {
-      return USBD_CtlSendData(pdev, (void *)&time_mode_info,
-                              sizeof(struct pcan_usbpro_time_mode));
-    }
+    case USB_VENDOR_REQUEST_wVALUE_INFO_BOOTLOADER:
+      return USBD_CtlSendData(pdev, (void *)&bi_info, sizeof(bi_info));
+    case USB_VENDOR_REQUEST_wVALUE_INFO_FIRMWARE:
+      return USBD_CtlSendData(pdev, (void *)&fw_info, sizeof(fw_info));
+    case USB_VENDOR_REQUEST_wVALUE_INFO_uC_CHIPID:
+      return USBD_CtlSendData(pdev, (void *)&uc_chid_info, sizeof(uc_chid_info));
+    case USB_VENDOR_REQUEST_wVALUE_INFO_USB_CHIPID:
+      return USBD_CtlSendData(pdev, (void *)&usb_chid_info, sizeof(usb_chid_info));
+    case USB_VENDOR_REQUEST_wVALUE_INFO_DEVICENR:
+      return USBD_CtlSendData(pdev, (void *)&dev_nr_info, sizeof(dev_nr_info));
+    case USB_VENDOR_REQUEST_wVALUE_INFO_CPLD:
+      return USBD_CtlSendData(pdev, (void *)&cpld_info, sizeof(cpld_info));
+    case USB_VENDOR_REQUEST_wVALUE_INFO_MODE:
+      return USBD_CtlSendData(pdev, (void *)&info_mode_data, sizeof(info_mode_data));
+    case USB_VENDOR_REQUEST_wVALUE_INFO_TIMEMODE:
+      return USBD_CtlSendData(pdev, (void *)&time_mode_info, sizeof(time_mode_info));
     default:
-      // assert(0);
       return USBD_FAIL;
     }
     break;
+
   case USB_VENDOR_REQUEST_FKT:
-    printf("PCAN: Vendor FKT Request Val=0x%04X\r\n", req->wValue);
     switch (req->wValue) {
-    case USB_VENDOR_REQUEST_wVALUE_SETFKT_BOOT:
-      break;
-    case USB_VENDOR_REQUEST_wVALUE_SETFKT_DEBUG_CAN:
-      break;
-    case USB_VENDOR_REQUEST_wVALUE_SETFKT_DEBUG_LIN:
-      break;
-    case USB_VENDOR_REQUEST_wVALUE_SETFKT_DEBUG1:
-      break;
-    case USB_VENDOR_REQUEST_wVALUE_SETFKT_DEBUG2:
-      break;
-    case USB_VENDOR_REQUEST_wVALUE_SETFKT_INTERFACE_DRIVER_LOADED: {
+    case USB_VENDOR_REQUEST_wVALUE_SETFKT_INTERFACE_DRIVER_LOADED:
       USBD_CtlPrepareRx(pdev, drv_load_packet, 16);
       return USBD_OK;
-    } break;
     default:
-      assert(0);
-      break;
+      return USBD_OK; // Silently accept other vendor functions
     }
-    break;
-  case USB_VENDOR_REQUEST_ZERO:
     break;
   default:
     USBD_CtlError(pdev, req);
     return USBD_FAIL;
   }
-
-  return USBD_FAIL;
 }
 
 void pcan_ep0_receive(void) {
-  printf("PCAN: EP0 Receive (DrvLoadPacket[0]=%d)\r\n", drv_load_packet[0]);
-  /* CAN */
+  printf("PCAN: Driver Loaded (Type=%d)\r\n", drv_load_packet[0]);
   if (drv_load_packet[0] == 0) {
     pcan_flush_ep(PCAN_USB_EP_MSGIN_CH1);
     pcan_flush_ep(PCAN_USB_EP_CMDIN);
     pcan_led_set_mode(LED_STAT, LED_MODE_BLINK_SLOW, 0xFFFFFFFF);
-  } else {
-    /* LIN */
-    ;
   }
 }
 
-/*
- * static int pcan_usbpro_sizeof_rec(uint8_t data_type)
- */
 static int pcan_usbpro_sizeof_rec(uint8_t data_type) {
   switch (data_type) {
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_8:
-    return sizeof(struct pcan_usbpro_canmsg_rx);
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_4:
-    return sizeof(struct pcan_usbpro_canmsg_rx) - 4;
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_8: return sizeof(struct pcan_usbpro_canmsg_rx);
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_4: return sizeof(struct pcan_usbpro_canmsg_rx) - 4;
   case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_0:
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RTR_RX:
-    return sizeof(struct pcan_usbpro_canmsg_rx) - 8;
-
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_STATUS_ERROR_RX:
-    return sizeof(struct pcan_usbpro_canmsg_status_error_rx);
-
-  case DATA_TYPE_USB2CAN_STRUCT_CALIBRATION_TIMESTAMP_RX:
-    return sizeof(struct pcan_usbpro_calibration_ts_rx);
-
-  case DATA_TYPE_USB2CAN_STRUCT_BUSLAST_RX:
-    return sizeof(struct pcan_usbpro_buslast_rx);
-
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_8:
-    return sizeof(struct pcan_usbpro_canmsg_tx);
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_4:
-    return sizeof(struct pcan_usbpro_canmsg_tx) - 4;
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_0:
-    return sizeof(struct pcan_usbpro_canmsg_tx) - 8;
-
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RTR_RX: return sizeof(struct pcan_usbpro_canmsg_rx) - 8;
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_STATUS_ERROR_RX: return sizeof(struct pcan_usbpro_canmsg_status_error_rx);
+  case DATA_TYPE_USB2CAN_STRUCT_CALIBRATION_TIMESTAMP_RX: return sizeof(struct pcan_usbpro_calibration_ts_rx);
+  case DATA_TYPE_USB2CAN_STRUCT_BUSLAST_RX: return sizeof(struct pcan_usbpro_buslast_rx);
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_8: return sizeof(struct pcan_usbpro_canmsg_tx);
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_4: return sizeof(struct pcan_usbpro_canmsg_tx) - 4;
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_0: return sizeof(struct pcan_usbpro_canmsg_tx) - 8;
   case DATA_TYPE_USB2CAN_STRUCT_FKT_GETBAUDRATE:
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETBAUDRATE:
-    return sizeof(struct pcan_usbpro_baudrate);
-
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETBAUDRATE: return sizeof(struct pcan_usbpro_baudrate);
   case DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUSACTIVATE:
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETCANBUSACTIVATE:
-    return sizeof(struct pcan_usbpro_bus_activity);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETSILENTMODE:
-    return sizeof(struct pcan_usbpro_silent_mode);
-
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETCANBUSACTIVATE: return sizeof(struct pcan_usbpro_bus_activity);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETSILENTMODE: return sizeof(struct pcan_usbpro_silent_mode);
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETDEVICENR:
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETDEVICENR:
-    return sizeof(struct pcan_usbpro_dev_nr);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETWARNINGLIMIT:
-    return sizeof(struct pcan_usbpro_warning_limit);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETLOOKUP_EXPLICIT:
-    return sizeof(struct pcan_usbpro_lookup_explicit);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETLOOKUP_GROUP:
-    return sizeof(struct pcan_usbpro_lookup_group);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETFILTERMODE:
-    return sizeof(struct pcan_usbpro_filter_mode);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETRESET_MODE:
-    return sizeof(struct pcan_usbpro_reset_mode);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETERRORFRAME:
-    return sizeof(struct pcan_usbpro_error_frame);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUS_ERROR_STATUS:
-    return sizeof(struct pcan_usbpro_error_status);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETREGISTER:
-    return sizeof(struct pcan_usbpro_set_register);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETREGISTER:
-    return sizeof(struct pcan_usbpro_get_register);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_CALIBRATION_MSG:
-    return sizeof(struct pcan_usbpro_calibration);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_BUSLAST_MSG:
-    return sizeof(struct pcan_usbpro_buslast);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETSTRING:
-    return sizeof(struct pcan_usbpro_set_string);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETSTRING:
-    return sizeof(struct pcan_usbpro_get_string);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_STRING:
-    return sizeof(struct pcan_usbpro_string);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SAVEEEPROM:
-    return sizeof(struct pcan_usbpro_save_eeprom);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_USB_IN_PACKET_DELAY:
-    return sizeof(struct pcan_usbpro_packet_delay);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_TIMESTAMP_PARAM:
-    return sizeof(struct pcan_usbpro_timestamp_param);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_ERROR_GEN_ID:
-    return sizeof(struct pcan_usbpro_error_gen_id);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_ERROR_GEN_NOW:
-    return sizeof(struct pcan_usbpro_error_gen_now);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_SOFTFILER:
-    return sizeof(struct pcan_usbpro_softfiler);
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_CANLED:
-    return sizeof(struct pcan_usbpro_set_can_led);
-
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETDEVICENR: return sizeof(struct pcan_usbpro_dev_nr);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETWARNINGLIMIT: return sizeof(struct pcan_usbpro_warning_limit);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETLOOKUP_EXPLICIT: return sizeof(struct pcan_usbpro_lookup_explicit);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETLOOKUP_GROUP: return sizeof(struct pcan_usbpro_lookup_group);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETFILTERMODE: return sizeof(struct pcan_usbpro_filter_mode);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETRESET_MODE: return sizeof(struct pcan_usbpro_reset_mode);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETERRORFRAME: return sizeof(struct pcan_usbpro_error_frame);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUS_ERROR_STATUS: return sizeof(struct pcan_usbpro_error_status);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETREGISTER: return sizeof(struct pcan_usbpro_set_register);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETREGISTER: return sizeof(struct pcan_usbpro_get_register);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_CALIBRATION_MSG: return sizeof(struct pcan_usbpro_calibration);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_BUSLAST_MSG: return sizeof(struct pcan_usbpro_buslast);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETSTRING: return sizeof(struct pcan_usbpro_set_string);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETSTRING: return sizeof(struct pcan_usbpro_get_string);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_STRING: return sizeof(struct pcan_usbpro_string);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SAVEEEPROM: return sizeof(struct pcan_usbpro_save_eeprom);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_USB_IN_PACKET_DELAY: return sizeof(struct pcan_usbpro_packet_delay);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_TIMESTAMP_PARAM: return sizeof(struct pcan_usbpro_timestamp_param);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_ERROR_GEN_ID: return sizeof(struct pcan_usbpro_error_gen_id);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_ERROR_GEN_NOW: return sizeof(struct pcan_usbpro_error_gen_now);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_SOFTFILER: return sizeof(struct pcan_usbpro_softfiler);
+  case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_CANLED: return sizeof(struct pcan_usbpro_set_can_led);
+  /* Protocol extensions often sent by modern PCAN drivers */
+  // case 0x0C: return 12; // Filter Std
+  // case 0x0D: return 12; // Filter Ext
   default:
-    assert(0);
+    printf("PCAN: Unknown Rec ID 0x%02X\r\n", data_type);
+    return -1;
   }
-
-  return -1;
 }
 
-/*
- * static uint8_t * pcan_usbpro_msg_init(struct pcan_usbpro_msg *pm,
- *                                       void *buffer_addr, int buffer_size)
- *
- * Initialize PCAN USB-PRO message data structure
- */
 static uint8_t *pcan_usbpro_msg_init(struct pcan_usbpro_msg *pm,
                                      void *buffer_addr, int buffer_size) {
-  if (buffer_size < 4)
-    return NULL;
-
+  if (buffer_size < 4) return NULL;
   pm->u.rec_buffer = (uint8_t *)buffer_addr;
   pm->rec_buffer_size = pm->rec_buffer_len = buffer_size;
   pm->rec_ptr = pm->u.rec_buffer + 4;
-
   return pm->rec_ptr;
 }
 
@@ -403,94 +288,72 @@ static void pcan_usbpro_msg_reset(struct pcan_usbpro_msg *pm) {
   *pm->u.rec_counter = 0;
 }
 
-/*
- * static int pcan_usbpro_msg_add_rec(struct pcan_usbpro_msg *pm,
- *                                    int id, ...)
- *
- * Add one record to a message being built.
- */
 static int pcan_usbpro_msg_add_rec(struct pcan_usbpro_msg *pm, int id, ...) {
-  int l, i;
+  int l, i = 0;
   uint8_t *pc;
   va_list ap;
-
   va_start(ap, id);
-
-  if (pm->rec_buffer_size < (pcan_usbpro_sizeof_rec(id) + pm->rec_buffer_len)) {
-    for (;;)
-      ;
+  int rec_size = pcan_usbpro_sizeof_rec(id);
+  if (rec_size < 0 || (pm->rec_buffer_size < (rec_size + pm->rec_buffer_len))) {
+    va_end(ap);
+    return 0;
   }
-
   pc = pm->rec_ptr + 1;
-
-  i = 0;
   switch (id) {
   case DATA_TYPE_USB2CAN_STRUCT_BUSLAST_RX:
-    *pc++ = (uint8_t)va_arg(ap, int);            // channel
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // buslast_val
+    *pc++ = (uint8_t)va_arg(ap, int);            
+    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); 
     pc += 2;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // timestamp
+    *(uint32_t *)pc = va_arg(ap, uint32_t); 
     pc += 4;
     break;
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_8:
-    i += 4;
-    /* fall through */
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_4:
-    i += 4;
-    /* fall through */
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_8: i += 4; /* fall through */
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_4: i += 4; /* fall through */
   case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_0:
-    *pc++ = (uint8_t)va_arg(ap, int);       // client
-    *pc++ = (uint8_t)va_arg(ap, int);       // flags
-    *pc++ = (uint8_t)va_arg(ap, int);       // len
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // id
+    *pc++ = (uint8_t)va_arg(ap, int);       
+    *pc++ = (uint8_t)va_arg(ap, int);       
+    *pc++ = (uint8_t)va_arg(ap, int);       
+    *(uint32_t *)pc = va_arg(ap, uint32_t); 
     pc += 4;
     memcpy(pc, va_arg(ap, int *), i);
     pc += i;
     break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_8:
-    i += 4;
-    /* fall through */
-  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_4:
-    i += 4;
-    /* fall through */
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_8: i += 4; /* fall through */
+  case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_4: i += 4; /* fall through */
   case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_0:
   case DATA_TYPE_USB2CAN_STRUCT_CANMSG_RTR_RX:
-    *pc++ = (uint8_t)va_arg(ap, int);       // client
-    *pc++ = (uint8_t)va_arg(ap, int);       // flags
-    *pc++ = (uint8_t)va_arg(ap, int);       // len
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // timestamp
+    *pc++ = (uint8_t)va_arg(ap, int);       
+    *pc++ = (uint8_t)va_arg(ap, int);       
+    *pc++ = (uint8_t)va_arg(ap, int);       
+    *(uint32_t *)pc = va_arg(ap, uint32_t); 
     pc += 4;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // id
+    *(uint32_t *)pc = va_arg(ap, uint32_t); 
     pc += 4;
     memcpy(pc, va_arg(ap, int *), i);
     pc += i;
     break;
-
   case DATA_TYPE_USB2CAN_STRUCT_CALIBRATION_TIMESTAMP_RX:
-    pc += 3;                                // dummy
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // timestamp64[0] usb frame index
+    pc += 3;                                
+    *(uint32_t *)pc = va_arg(ap, uint32_t); 
     pc += 4;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // timestamp64[1] ts us
+    *(uint32_t *)pc = va_arg(ap, uint32_t); 
     pc += 4;
     break;
   case DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUSACTIVATE:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUS_ERROR_STATUS:
-    *pc++ = (uint8_t)va_arg(ap, int);            // channel
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // onoff,status
+    *pc++ = (uint8_t)va_arg(ap, int);            
+    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); 
     pc += 2;
     break;
   case DATA_TYPE_USB2CAN_STRUCT_FKT_GETBAUDRATE:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETBAUDRATE:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETDEVICENR:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_GETDEVICENR:
-    *pc++ = (uint8_t)va_arg(ap, int); // channel
-    pc += 2;                          // dummy
-    /* CCBT, devicenr */
+    *pc++ = (uint8_t)va_arg(ap, int); 
+    pc += 2;                          
     *(uint32_t *)pc = va_arg(ap, uint32_t);
     pc += 4;
     break;
-
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETCANBUSACTIVATE:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETSILENTMODE:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETWARNINGLIMIT:
@@ -499,463 +362,148 @@ static int pcan_usbpro_msg_add_rec(struct pcan_usbpro_msg *pm, int id, ...) {
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETERRORFRAME:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_TIMESTAMP_PARAM:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_ERROR_GEN_NOW:
-    *pc++ = (uint8_t)va_arg(ap, int); // channel
-    /* onoff, silentmode, warninglimit, filter_mode, reset, mode, */
-    /* start_or_end, bit_pos */
+    *pc++ = (uint8_t)va_arg(ap, int); 
     *(uint16_t *)pc = (uint16_t)va_arg(ap, int);
     pc += 2;
     break;
-
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETLOOKUP_EXPLICIT:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_CANLED:
-    *pc++ = (uint8_t)va_arg(ap, int);            // channel
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // id_type,mode
+    *pc++ = (uint8_t)va_arg(ap, int);            
+    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); 
     pc += 2;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // id, timeout
+    *(uint32_t *)pc = va_arg(ap, uint32_t); 
     pc += 4;
     break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETLOOKUP_GROUP:
-    *pc++ = (uint8_t)va_arg(ap, int);            // channel
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // id_type
-    pc += 2;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // id_start
-    pc += 4;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // id_end
-    pc += 4;
-    break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETREGISTER:
-    *pc++ = (uint8_t)va_arg(ap, int);       // irq_off
-    pc += 2;                                // dummy
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // address
-    pc += 4;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // value
-    pc += 4;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // mask
-    pc += 4;
-    break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETREGISTER:
-    *pc++ = (uint8_t)va_arg(ap, int);       // irq_off
-    pc += 2;                                // dummy
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // address
-    pc += 4;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // value
-    pc += 4;
-    break;
-
   case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_CALIBRATION_MSG:
   case DATA_TYPE_USB2CAN_STRUCT_FKT_USB_IN_PACKET_DELAY:
-    pc++; // dummy
-    /* mode, delay */
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // mode
+    pc++; 
+    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); 
     pc += 2;
     break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_BUSLAST_MSG:
-    *pc++ = (uint8_t)va_arg(ap, int); // channel
-    pc++;                             // dummy
-    *pc++ = (uint8_t)va_arg(ap, int); // mode
-    //*(uint16_t *)pc = (uint16_t )va_arg(ap, int)); // prescaler
-    pc += 2; // prescale (readonly)
-    //*(uint16_t *)pc = (uint16_t )va_arg(ap, int)); // sampletimequanta
-    *(uint16_t *)pc = 4096; // sampletimequanta
-    pc += 2;
-    break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SETSTRING:
-    *pc++ = (uint8_t)va_arg(ap, int); // channel
-    *pc++ = (uint8_t)va_arg(ap, int); // offset
-    *pc++ = (uint8_t)va_arg(ap, int); // len
-    memcpy(pc, va_arg(ap, uint8_t *), 60);
-    pc += 60;
-    break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_GETSTRING:
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SAVEEEPROM:
-    *pc++ = (uint8_t)va_arg(ap, int); // channel
-    pc += 2;                          // dummy
-    break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_STRING:
-    *pc++ = (uint8_t)va_arg(ap, int); // channel
-    pc += 2;                          // dummy
-    memcpy(pc, va_arg(ap, uint8_t *), 250);
-    pc += 250;
-    break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_ERROR_GEN_ID:
-    *pc++ = (uint8_t)va_arg(ap, int);            // channel
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // bit_pos
-    pc += 2;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // id
-    pc += 4;
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // ok_counter
-    pc += 2;
-    *(uint16_t *)pc = (uint16_t)va_arg(ap, int); // error_counter
-    pc += 2;
-    break;
-
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_SOFTFILER:
-    *pc++ = (uint8_t)va_arg(ap, int); // channel
-    pc += 2;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // accmask
-    pc += 4;
-    *(uint32_t *)pc = va_arg(ap, uint32_t); // acccode
-    pc += 4;
-    break;
-
-#if 0
-  case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_CANLED:
-    *pc++ = (uint8_t )va_arg(ap, int);  // channel
-    *(uint16_t *)pc =  (uint16_t )va_arg(ap, int); // mode
-    pc += 2;
-    *(uint32_t *)pc =  va_arg(ap, uint32_t); // timeout
-    pc += 4;
-    break;
-#endif
-
-  default:
-    assert(0);
-    break;
+  default: break;
   }
-
   l = pc - pm->rec_ptr;
   if (l > 0) {
     *pm->u.rec_counter = *pm->u.rec_counter + 1;
     *(pm->rec_ptr) = (uint8_t)id;
-
     pm->rec_ptr = pc;
     pm->rec_buffer_len += l;
   }
-
   va_end(ap);
-
   return l;
 }
 
 int pcan_protocol_set_baudrate(uint8_t channel, uint32_t ccbt) {
-#define PCAN_USBPRO_SYSCLK_HZ (56000000u)
-#define PCAN_STM32_SYSCLK_HZ (24000000u)
-  uint32_t brp, pcan_brp;
-  uint32_t tseg1, tseg2;
-  uint32_t sjw;
-  uint32_t tsam; /* triple sampling */
-  uint32_t bitrate, pcan_bitrate;
+  uint32_t brp = (ccbt & 0x3fff) + 1;
+  uint32_t tseg2 = ((ccbt >> 20) & 0x07) + 1;
+  uint32_t tseg1 = ((ccbt >> 16) & 0x0f) + 1;
+  uint32_t sjw = ((ccbt >> 14) & 0x03) + 1;
+  uint32_t pcan_brp = (24 * brp) / 56;
 
-  tsam = (ccbt >> 23) & 1;
-  (void)tsam;
-  tseg2 = ((ccbt >> 20) & 0x07) + 1;
-  tseg1 = ((ccbt >> 16) & 0x0f) + 1;
-  sjw = ((ccbt >> 14) & 0x03) + 1;
-  brp = (ccbt & 0x3fff) + 1;
-
-  pcan_brp = (24 * brp) / 56;
-
-  bitrate = (((PCAN_USBPRO_SYSCLK_HZ) / brp) / (1 /*tq*/ + tseg1 + tseg2));
-  pcan_bitrate =
-      (((PCAN_STM32_SYSCLK_HZ) / pcan_brp) / (1 /*tq*/ + tseg1 + tseg2));
-
-  if (bitrate != pcan_bitrate) {
-    pcan_can_set_bitrate(channel, bitrate, 0);
-  } else {
-    pcan_can_set_bitrate_ex(channel, pcan_brp, tseg1, tseg2, sjw);
-  }
-
-  /* save driver value without adjustments */
+  pcan_can_set_bitrate_ex(channel, pcan_brp, tseg1, tseg2, sjw);
   pcan_device.can[channel].ccbt = ccbt;
   return 0;
 }
 
 int pcan_protocol_rx_frame(uint8_t channel, struct t_can_msg *pmsg) {
-  uint8_t rec_type;
-  uint8_t client;
-  uint8_t flags;
-
+  uint8_t rec_type, client = 0, flags = 0;
   if (!pcan_device.can[channel].led_is_busy && !(pmsg->flags & MSG_FLAG_ECHO)) {
-    pcan_led_set_mode(channel ? LED_CH1_RX : LED_CH0_RX, LED_MODE_BLINK_FAST,
-                      237);
+    pcan_led_set_mode(channel ? LED_CH1_RX : LED_CH0_RX, LED_MODE_BLINK_FAST, 237);
   }
+  if (pmsg->flags & MSG_FLAG_RTR) rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RTR_RX;
+  else if (pmsg->size == 0) rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_0;
+  else if (pmsg->size <= 4) rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_4;
+  else rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_8;
 
-  if (pmsg->flags & MSG_FLAG_RTR)
-    rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RTR_RX;
-  else if (pmsg->size == 0)
-    rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_0;
-  else if (pmsg->size <= 4)
-    rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_4;
-  else
-    rec_type = DATA_TYPE_USB2CAN_STRUCT_CANMSG_RX_8;
-
-  client = 0;
-  flags = 0;
-
-  if (pmsg->flags & MSG_FLAG_ECHO) {
-    flags |= 0x04; /* SELF RECIEVE */
-    client = pmsg->dummy;
-  }
-  if (pmsg->flags & MSG_FLAG_RTR)
-    flags |= PCAN_USBPRO_RTR;
-  if (pmsg->flags & MSG_FLAG_EXT)
-    flags |= PCAN_USBPRO_EXT;
+  if (pmsg->flags & MSG_FLAG_ECHO) { flags |= 0x04; client = pmsg->dummy; }
+  if (pmsg->flags & MSG_FLAG_RTR) flags |= PCAN_USBPRO_RTR;
+  if (pmsg->flags & MSG_FLAG_EXT) flags |= PCAN_USBPRO_EXT;
 
   pcan_usbpro_msg_add_rec(&resp[PCAN_USB_BUFFER_DATA], rec_type, client, flags,
                           ((channel << 4) | pmsg->size), pmsg->timestamp,
                           pmsg->id, pmsg->data);
-
   return 0;
 }
 
 int pcan_protocol_tx_frame_cb(uint8_t channel, struct t_can_msg *pmsg) {
-  if (pmsg->flags & MSG_FLAG_ECHO) {
-    (void)pcan_protocol_rx_frame(channel, pmsg);
-  }
-
+  if (pmsg->flags & MSG_FLAG_ECHO) pcan_protocol_rx_frame(channel, pmsg);
   if (!pcan_device.can[channel].led_is_busy) {
-    pcan_led_set_mode(channel ? LED_CH1_TX : LED_CH0_TX, LED_MODE_BLINK_FAST,
-                      237);
+    pcan_led_set_mode(channel ? LED_CH1_TX : LED_CH0_TX, LED_MODE_BLINK_FAST, 237);
   }
   return 0;
 }
 
 int pcan_protocol_tx_frame(struct pcan_usbpro_canmsg_tx *pmsg) {
   struct t_can_msg msg = {0};
-  uint8_t channel;
-
-  channel = (pmsg->len >> 4) & 0x0f;
-
-  if (channel >= CAN_CHANNEL_MAX)
-    return -1;
-
+  uint8_t channel = (pmsg->len >> 4) & 0x0f;
+  if (channel >= CAN_CHANNEL_MAX) return -1;
   msg.id = pmsg->id;
   msg.size = pmsg->len & 0x0f;
-
-  if (msg.size > sizeof(msg.data))
-    return -1;
-
-  if (pmsg->flags & PCAN_USBPRO_RTR)
-    msg.flags |= MSG_FLAG_RTR;
-  if (pmsg->flags & PCAN_USBPRO_EXT)
-    msg.flags |= MSG_FLAG_EXT;
-  if (pmsg->client & PCAN_USBPRO_SR) {
-    msg.flags |= MSG_FLAG_ECHO;
-    msg.dummy = pmsg->client;
-  }
-
+  if (msg.size > 8) return -1;
+  if (pmsg->flags & PCAN_USBPRO_RTR) msg.flags |= MSG_FLAG_RTR;
+  if (pmsg->flags & PCAN_USBPRO_EXT) msg.flags |= MSG_FLAG_EXT;
+  if (pmsg->client & PCAN_USBPRO_SR) { msg.flags |= MSG_FLAG_ECHO; msg.dummy = pmsg->client; }
   memcpy(msg.data, pmsg->data, msg.size);
-
   msg.timestamp = pcan_timestamp_us();
-
-  if (pcan_can_write(channel, &msg) < 0) {
-    /* tx queue overflow ? */
-    pcan_device.can[channel].err |= 0;
-  }
-#if 0
-  if( msg.flags & CAN_FLAG_ECHO )
-  {
-    (void)pcan_protocol_rx_frame( channel, &msg );
-  }
-#endif
+  pcan_can_write(channel, &msg);
   return 0;
 }
 
 void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
   struct pcan_usbpro_msg m = {0};
-  uint8_t *rec_ptr = 0;
-  static volatile uint32_t wow_big = 0;
-  if (size > 64) {
-    ++wow_big;
-  }
+  uint8_t *rec_ptr = pcan_usbpro_msg_init(&m, ptr, size);
+  if (!rec_ptr || size < 4) return;
 
-  rec_ptr = pcan_usbpro_msg_init(&m, ptr, size);
+  int buffer_ep = (ep == PCAN_USB_EP_CMDOUT) ? PCAN_USB_BUFFER_CMD : PCAN_USB_BUFFER_DATA;
+  uint32_t num_recs = *m.u.rec_counter_read;
 
-  if (!rec_ptr)
-    return;
-
-  int buffer_ep =
-      (ep == PCAN_USB_EP_CMDOUT) ? PCAN_USB_BUFFER_CMD : PCAN_USB_BUFFER_DATA;
-  uint32_t r;
-
-  for (r = 0; r < *m.u.rec_counter_read; r++) {
-    int rec_size;
+  for (uint32_t r = 0; r < num_recs; r++) {
     union pcan_usbpro_rec *prec = (void *)rec_ptr;
+    int rec_size = pcan_usbpro_sizeof_rec(prec->data_type);
 
-    rec_size = pcan_usbpro_sizeof_rec(prec->data_type);
+    if (rec_size < 0 || size < (rec_size + 1)) return; 
 
-    if (rec_size < 0 || size < (rec_size + 4))
-      return; /* bad data */
-
-    // printf("PCAN RX: Type=0x%02X\r\n", prec->data_type); // Verbose log
     switch (prec->data_type) {
-    default:
-      printf("PCAN Unknown Cmd: 0x%02X\r\n", prec->data_type);
-      assert(0);
-      break;
-    /* windows only */
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SETWARNINGLIMIT:
-      printf("CMD: Set Warning Limit\r\n");
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SETFILTERMODE:
-      printf("CMD: Set Filter Mode\r\n");
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SETERRORFRAME:
-      printf("CMD: Set Error Frame\r\n");
-      break;
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_8:
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_4:
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_0:
-      // printf("CMD: TX Frame (Len=%d)\r\n", prec->canmsg_tx.len & 0x0F);
-      if ((prec->canmsg_tx.len >> 4) < CAN_CHANNEL_MAX) {
-        (void)pcan_protocol_tx_frame(&prec->canmsg_tx);
-      }
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_GETBAUDRATE:
-      if (prec->baudrate.channel < CAN_CHANNEL_MAX) {
-        pcan_usbpro_msg_add_rec(
-            &resp[buffer_ep], DATA_TYPE_USB2CAN_STRUCT_FKT_GETBAUDRATE,
-            prec->baudrate.channel, pcan_device.can[prec->dev_nr.channel].ccbt);
-      }
+      pcan_protocol_tx_frame(&prec->canmsg_tx);
       break;
     case DATA_TYPE_USB2CAN_STRUCT_FKT_SETBAUDRATE:
-      if (prec->baudrate.channel < CAN_CHANNEL_MAX) {
-        (void)pcan_protocol_set_baudrate(prec->baudrate.channel,
-                                         prec->baudrate.CCBT);
-      }
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUSACTIVATE:
-      if (prec->bus_activity.channel < CAN_CHANNEL_MAX) {
-        pcan_usbpro_msg_add_rec(
-            &resp[buffer_ep], DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUSACTIVATE,
-            prec->bus_activity.channel,
-            pcan_device.can[prec->dev_nr.channel].bus_active);
-      }
+      pcan_protocol_set_baudrate(prec->baudrate.channel, prec->baudrate.CCBT);
       break;
     case DATA_TYPE_USB2CAN_STRUCT_FKT_SETCANBUSACTIVATE:
-      if (prec->bus_activity.channel < CAN_CHANNEL_MAX) {
-        uint8_t ch = prec->bus_activity.channel;
-        pcan_device.can[ch].bus_active = prec->bus_activity.onoff;
-        pcan_can_set_bus_active((ch == 0) ? CAN_BUS_1 : CAN_BUS_2,
-                                prec->bus_activity.onoff);
-
-        if (!pcan_device.can[ch].led_is_busy) {
-          pcan_led_set_mode(ch ? LED_CH1_RX : LED_CH0_RX,
-                            prec->bus_activity.onoff ? LED_MODE_ON
-                                                     : LED_MODE_OFF,
-                            0xFFFFFFFF);
-        }
-      }
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SETSILENTMODE:
-      if (prec->silent_mode.channel < CAN_CHANNEL_MAX) {
-        pcan_device.can[prec->bus_activity.channel].silient =
-            prec->silent_mode.onoff;
-        pcan_can_set_silent((prec->silent_mode.channel == 0) ? CAN_BUS_1
-                                                             : CAN_BUS_2,
-                            prec->silent_mode.onoff);
-      }
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUS_ERROR_STATUS:
-      if (prec->error_status.channel < CAN_CHANNEL_MAX) {
-        pcan_usbpro_msg_add_rec(
-            &resp[buffer_ep],
-            DATA_TYPE_USB2CAN_STRUCT_FKT_GETCANBUS_ERROR_STATUS,
-            prec->error_status.channel, 0x0000);
-      }
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_CALIBRATION_MSG:
-      pcan_device.time_calibration_mode = prec->calibration.mode;
-      if (!pcan_device.time_calibration_mode)
-        break;
-      pcan_device.last_time_sync = 0;
-      pcan_usbpro_msg_add_rec(&resp[PCAN_USB_BUFFER_DATA],
-                              DATA_TYPE_USB2CAN_STRUCT_CALIBRATION_TIMESTAMP_RX,
-                              pcan_usb_frame_number(), pcan_timestamp_us());
-
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SETGET_BUSLAST_MSG:
-      /* TODO: */
-      (void)prec->buslast.channel;
-      (void)prec->buslast.mode;
-      (void)prec->buslast.prescaler;
-      (void)prec->buslast.sampletimequanta;
-
-      pcan_usbpro_msg_add_rec(&resp[PCAN_USB_BUFFER_DATA],
-                              DATA_TYPE_USB2CAN_STRUCT_BUSLAST_RX,
-                              prec->buslast.channel, 0, pcan_timestamp_us());
+      pcan_can_set_bus_active(prec->bus_activity.channel ? CAN_BUS_2 : CAN_BUS_1, prec->bus_activity.onoff);
       break;
     case DATA_TYPE_USB2CAN_STRUCT_FKT_GETDEVICENR:
-      if (prec->dev_nr.channel < CAN_CHANNEL_MAX) {
-        pcan_usbpro_msg_add_rec(
-            &resp[PCAN_USB_BUFFER_CMD],
-            DATA_TYPE_USB2CAN_STRUCT_FKT_GETDEVICENR, prec->dev_nr.channel,
-            pcan_device.can[prec->dev_nr.channel].channel_nr);
-      }
+      pcan_usbpro_msg_add_rec(&resp[PCAN_USB_BUFFER_CMD], DATA_TYPE_USB2CAN_STRUCT_FKT_GETDEVICENR, 
+                              prec->dev_nr.channel, pcan_device.can[prec->dev_nr.channel].channel_nr);
       break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SETDEVICENR:
-      if (prec->dev_nr.channel < CAN_CHANNEL_MAX) {
-        pcan_device.can[prec->dev_nr.channel].channel_nr =
-            prec->dev_nr.serial_num;
-      }
-      break;
-    case DATA_TYPE_USB2CAN_STRUCT_FKT_SET_CANLED:
-      if (prec->dev_nr.channel < CAN_CHANNEL_MAX) {
-        pcan_device.can[prec->dev_nr.channel].led_is_busy =
-            prec->set_can_led.mode;
-        pcan_led_set_mode(prec->dev_nr.channel, prec->set_can_led.mode,
-                          prec->set_can_led.timeout);
-      }
-      break;
+    default: break;
     }
-
     rec_ptr += rec_size;
     size -= rec_size;
   }
 }
 
 void pcan_protocol_init(void) {
-  printf("PCAN: Protocol Init. FW Version: %d.%d.%d\r\n", fw_info.fw_version[0],
-         fw_info.fw_version[1], fw_info.fw_version[2]);
   pcan_can_init_ex(CAN_BUS_1, 500000);
-  pcan_can_set_filter_mask(CAN_BUS_1, 0, 0, 0, 0);
   pcan_can_init_ex(CAN_BUS_2, 500000);
-  pcan_can_set_filter_mask(CAN_BUS_2, 0, 0, 0, 0);
-
-  pcan_usbpro_msg_init_empty(&resp[PCAN_USB_BUFFER_CMD],
-                             &resp_buffer[PCAN_USB_BUFFER_CMD],
-                             sizeof(resp_buffer[PCAN_USB_BUFFER_CMD]));
-  pcan_usbpro_msg_init_empty(&resp[PCAN_USB_BUFFER_DATA],
-                             &resp_buffer[PCAN_USB_BUFFER_DATA],
-                             sizeof(resp_buffer[PCAN_USB_BUFFER_DATA]));
-
+  pcan_usbpro_msg_init_empty(&resp[PCAN_USB_BUFFER_CMD], &resp_buffer[PCAN_USB_BUFFER_CMD], PCAN_USB_DATA_BUFFER_SIZE);
+  pcan_usbpro_msg_init_empty(&resp[PCAN_USB_BUFFER_DATA], &resp_buffer[PCAN_USB_BUFFER_DATA], PCAN_USB_DATA_BUFFER_SIZE);
   pcan_can_install_rx_callback(CAN_BUS_1, pcan_protocol_rx_frame);
   pcan_can_install_rx_callback(CAN_BUS_2, pcan_protocol_rx_frame);
-
   pcan_can_install_tx_callback(CAN_BUS_1, pcan_protocol_tx_frame_cb);
   pcan_can_install_tx_callback(CAN_BUS_2, pcan_protocol_tx_frame_cb);
 }
 
 void pcan_protocol_poll(void) {
-  uint32_t ts_ms = pcan_timestamp_millis();
-
   pcan_can_poll();
-
   for (int i = 0; i < 2; i++) {
-    struct pcan_usbpro_msg *prec = &resp[i];
-    if (prec->rec_buffer_len > 4) {
-      int res = pcan_flush_data(&resp_fsm[i], prec->u.rec_buffer,
-                                prec->rec_buffer_len);
-      if (res) {
-        pcan_usbpro_msg_reset(prec);
+    if (resp[i].rec_buffer_len > 4) {
+      if (pcan_flush_data(&resp_fsm[i], resp[i].u.rec_buffer, resp[i].rec_buffer_len)) {
+        pcan_usbpro_msg_reset(&resp[i]);
       }
-    }
-  }
-
-  if (pcan_device.time_calibration_mode) {
-    if ((ts_ms - pcan_device.last_time_sync) >= 1000u) {
-      pcan_device.last_time_sync = ts_ms;
-      pcan_usbpro_msg_add_rec(&resp[PCAN_USB_BUFFER_DATA],
-                              DATA_TYPE_USB2CAN_STRUCT_CALIBRATION_TIMESTAMP_RX,
-                              pcan_usb_frame_number(), pcan_timestamp_us());
     }
   }
 }

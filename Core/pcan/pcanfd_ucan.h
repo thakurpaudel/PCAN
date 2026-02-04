@@ -308,4 +308,14 @@ struct ucan_tx_pause {
   uint16_t  reserved;
 }__attribute__((packed));
 
+// _Static_assert(sizeof(struct ucan_command) == 1, "ucan_command must be 1 byte");
+// _Static_assert(sizeof(struct ucan_timing_slow) == 6, "ucan_timing_slow must be 6 bytes");
+// _Static_assert(sizeof(struct ucan_timing_fast) == 6, "ucan_timing_fast must be 6 bytes");
+// _Static_assert(sizeof(struct ucan_option) == 3, "ucan_option must be 3 bytes");
+// _Static_assert(sizeof(struct ucan_usb_clock) == 2, "ucan_usb_clock must be 2 bytes");
+// _Static_assert(sizeof(struct ucan_usb_led) == 2, "ucan_usb_led must be 2 bytes");
+// _Static_assert(sizeof(struct ucan_usb_device_id) == 5, "ucan_usb_device_id must be 5 bytes");
+
+
+
 #endif
