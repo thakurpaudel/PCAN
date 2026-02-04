@@ -58,21 +58,21 @@ You can choose between **Classic CAN** (default) or **CAN-FD** mode.
 
 **For Standard CAN-FD Mode (Recommended):**
 ```bash
-cmake -B build -DPCAN_CAN_FD_MODE=ON
+cmake -B build/Debug -DPCAN_CAN_FD_MODE=ON
 ```
 
 **For Legacy Classic CAN Mode:**
 ```bash
-cmake -B build -DPCAN_CAN_FD_MODE=OFF
+cmake -B build/Debug -DPCAN_CAN_FD_MODE=OFF
 ```
 
 ### 3. Compile
 ```bash
-cmake --build build -j$(nproc)
+cmake --build build/Debug -j$(nproc)
 ```
 
 ### 4. Output Files
-The build process automatically generates the following in the `build/` directory:
+The build process automatically generates the following in the `build/Debug` directory:
 *   `PCAN.elf`: The main executable (with debug symbols).
 *   `PCAN.bin`: Binary file for flashing.
 *   `PCAN.hex`: Intel HEX file for flashing.
