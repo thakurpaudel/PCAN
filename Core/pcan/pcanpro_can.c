@@ -194,9 +194,9 @@ static int _can_send(FDCAN_HandleTypeDef *p_can, struct t_can_msg *p_msg,
     return -1;
   }
 
-  printf("CAN%d HW TX: ID=0x%lx DLC=%lu\r\n",
-         (int)(_bus_from_int_dev(p_can->Instance) + 1),
-         (unsigned long)msg.Identifier, (unsigned long)msg.DataLength);
+  // printf("CAN%d HW TX: ID=0x%lx DLC=%lu\r\n",
+  //        (int)(_bus_from_int_dev(p_can->Instance) + 1),
+  //        (unsigned long)msg.Identifier, (unsigned long)msg.DataLength);
 
   return 0;
 }
@@ -263,9 +263,11 @@ void pcan_can_install_err_callback(int bus, void (*cb)(int, uint32_t)) {
   p_dev->err_handler = cb;
 }
 
+
 // Bitrate calculation for FDCAN
 // Assuming FDCAN kernel clock = 120 MHz
 // Adjust based on your actual clock configuration
+
 static int _get_precalculated_bitrate(uint32_t bitrate, uint32_t *prescaler,
                                       uint32_t *tseg1, uint32_t *tseg2,
                                       uint32_t *sjw) {
@@ -329,7 +331,7 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
     return 0;
 
   printf("=== CAN%d Init Start (POLLING MODE) ===\r\n", bus + 1);
-  
+
   HAL_FDCAN_DeInit(p_can);
 
   // Frame format: Classic CAN by default
@@ -394,17 +396,192 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
     printf("CAN%d: HAL_FDCAN_Start FAILED!\r\n", bus + 1);
     return -1;
   }
-  
+
   // Check initial status
   uint32_t psr = p_can->Instance->PSR;
   printf("CAN%d: Started OK, PSR=0x%08lX\r\n", bus + 1, psr);
   printf("CAN%d: Init Classic @ %u bps (POLLING MODE - No ISR)\r\n", bus + 1,
          (unsigned int)bitrate);
-  printf("CAN%d: Prescaler=%lu, TSEG1=%lu, TSEG2=%lu, SJW=%lu\r\n", 
-         bus + 1, prescaler, tseg1, tseg2, sjw);
-  
+  printf("CAN%d: Prescaler=%lu, TSEG1=%lu, TSEG2=%lu, SJW=%lu\r\n", bus + 1,
+         prescaler, tseg1, tseg2, sjw);
+
   return 0;
 }
+
+// static int _get_precalculated_bitrate(uint32_t bitrate, uint32_t *prescaler,
+//                                       uint32_t *tseg1, uint32_t *tseg2,
+//                                       uint32_t *sjw) {
+//     switch (bitrate) {
+//     case 1000000u:
+//         *prescaler = 6;
+//         *tseg1 = 15;
+//         *tseg2 = 4;
+//         *sjw = 4;
+//         break;
+//     case 800000u:
+//         *prescaler = 10;   // Changed from 15
+//         *tseg1 = 11;       // Adjusted
+//         *tseg2 = 3;        // Adjusted
+//         *sjw = 3;          // Fixed
+//         // 120MHz / (10×15) = 800kHz, SP=80%
+//         break;
+//     case 500000u:
+//         *prescaler = 12;
+//         *tseg1 = 15;
+//         *tseg2 = 4;
+//         *sjw = 4;
+//         break;
+//     case 250000u:
+//         *prescaler = 20;   // Changed from 24 - EVEN NUMBER
+//         *tseg1 = 18;       // Adjusted
+//         *tseg2 = 5;        // Adjusted  
+//         *sjw = 5;          // Adjusted
+//         // 120MHz / (20×24) = 250kHz, SP=79.2%
+//         break;
+//     case 125000u:
+//         *prescaler = 48;
+//         *tseg1 = 15;
+//         *tseg2 = 4;
+//         *sjw = 4;
+//         break;
+//     case 100000u:
+//         *prescaler = 60;
+//         *tseg1 = 15;
+//         *tseg2 = 4;
+//         *sjw = 4;
+//         break;
+//     case 50000u:
+//         *prescaler = 120;
+//         *tseg1 = 15;
+//         *tseg2 = 4;
+//         *sjw = 4;
+//         break;
+//     default:
+//         *prescaler = 12;
+//         *tseg1 = 15;
+//         *tseg2 = 4;
+//         *sjw = 4;
+//         break;
+//     }
+//     return 0;
+// }
+// int pcan_can_init_ex(int bus, uint32_t bitrate) {
+//   FDCAN_HandleTypeDef *p_can = can_dev_array[bus].dev;
+//   uint32_t prescaler, tseg1, tseg2, sjw;
+  
+//   if (!p_can)
+//     return 0;
+
+//   printf("=== CAN%d Init Start (POLLING MODE) ===\r\n", bus + 1);
+
+//   // ✓ Verify clock source
+//   uint32_t fdcan_clk = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_FDCAN);
+//   printf("CAN%d: Kernel Clock = %lu Hz (expected 120000000)\r\n", 
+//          bus + 1, fdcan_clk);
+  
+//   if (fdcan_clk != 120000000) {
+//     printf("CAN%d: WARNING - Clock mismatch! Bit timing will be wrong!\r\n", 
+//            bus + 1);
+//   }
+
+//   HAL_FDCAN_DeInit(p_can);
+
+//   // Frame format: Classic CAN
+//   p_can->Init.FrameFormat = FDCAN_FRAME_CLASSIC;
+//   can_dev_array[bus].fd_mode = 0;
+//   p_can->Init.Mode = FDCAN_MODE_NORMAL;
+  
+//   // ✓ FIXED: Enable auto-retransmission for reliability
+//   p_can->Init.AutoRetransmission = ENABLE;  
+  
+//   p_can->Init.TransmitPause = DISABLE;
+//   p_can->Init.ProtocolException = DISABLE;
+
+//   // Nominal bit timing
+//   _get_precalculated_bitrate(bitrate, &prescaler, &tseg1, &tseg2, &sjw);
+  
+//   p_can->Init.NominalPrescaler = prescaler;
+//   p_can->Init.NominalSyncJumpWidth = sjw;
+//   p_can->Init.NominalTimeSeg1 = tseg1;
+//   p_can->Init.NominalTimeSeg2 = tseg2;
+
+//   // ✓ FIXED: Data bit timing for Classic CAN
+//   // Option 1: Set to minimum valid values (recommended for Classic CAN)
+//   p_can->Init.DataPrescaler = 1;
+//   p_can->Init.DataSyncJumpWidth = 1;
+//   p_can->Init.DataTimeSeg1 = 1;
+//   p_can->Init.DataTimeSeg2 = 1;
+  
+//   // Option 2: Match nominal (your original approach - also valid)
+//   // p_can->Init.DataPrescaler = prescaler;
+//   // p_can->Init.DataSyncJumpWidth = sjw;
+//   // p_can->Init.DataTimeSeg1 = tseg1;
+//   // p_can->Init.DataTimeSeg2 = tseg2;
+
+//   // Message RAM configuration
+//   p_can->Init.MessageRAMOffset = (bus == CAN_BUS_1) ? 0 : 1280;
+//   p_can->Init.StdFiltersNbr = 28;
+//   p_can->Init.ExtFiltersNbr = 8;
+//   p_can->Init.RxFifo0ElmtsNbr = 16;
+//   p_can->Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_8;
+//   p_can->Init.RxFifo1ElmtsNbr = 16;
+//   p_can->Init.RxFifo1ElmtSize = FDCAN_DATA_BYTES_8;
+//   p_can->Init.RxBuffersNbr = 0;
+//   p_can->Init.RxBufferSize = FDCAN_DATA_BYTES_8;
+//   p_can->Init.TxEventsNbr = 0;
+//   p_can->Init.TxBuffersNbr = 0;
+//   p_can->Init.TxFifoQueueElmtsNbr = 16;
+//   p_can->Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
+//   p_can->Init.TxElmtSize = FDCAN_DATA_BYTES_8;
+
+//   if (HAL_FDCAN_Init(p_can) != HAL_OK) {
+//     printf("CAN%d: HAL_FDCAN_Init FAILED! Error=0x%08lX\r\n", 
+//            bus + 1, p_can->ErrorCode);
+//     return -1;
+//   }
+//   printf("CAN%d: HAL_FDCAN_Init OK\r\n", bus + 1);
+
+//   // Permissive filter
+//   if (HAL_FDCAN_ConfigGlobalFilter(
+//           p_can, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+//           FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK) {
+//     printf("CAN%d: Global Filter Config FAILED!\r\n", bus + 1);
+//     return -1;
+//   }
+//   printf("CAN%d: Global Filter Config OK (Accept All)\r\n", bus + 1);
+
+//   if (HAL_FDCAN_Start(p_can) != HAL_OK) {
+//     printf("CAN%d: HAL_FDCAN_Start FAILED! Error=0x%08lX\r\n", 
+//            bus + 1, p_can->ErrorCode);
+//     return -1;
+//   }
+
+//   // ✓ Enhanced status reporting
+//   uint32_t psr = p_can->Instance->PSR;
+//   uint32_t ecr = p_can->Instance->ECR;
+  
+//   printf("CAN%d: Started OK\r\n", bus + 1);
+//   printf("  PSR=0x%08lX (LEC=%lu, ACT=%lu, EP=%lu, EW=%lu, BO=%lu)\r\n", 
+//          psr,
+//          (psr >> 0) & 0x7,   // LEC - Last Error Code
+//          (psr >> 3) & 0x3,   // ACT - Activity
+//          (psr >> 5) & 0x1,   // EP - Error Passive
+//          (psr >> 6) & 0x1,   // EW - Error Warning
+//          (psr >> 7) & 0x1);  // BO - Bus Off
+//   printf("  ECR=0x%08lX (TEC=%lu, REC=%lu)\r\n", 
+//          ecr, 
+//          (ecr >> 0) & 0xFF,  // TX Error Counter
+//          (ecr >> 8) & 0x7F); // RX Error Counter
+  
+//   printf("CAN%d: Classic CAN @ %u bps (POLLING MODE)\r\n", 
+//          bus + 1, (unsigned int)bitrate);
+//   printf("  Nominal: Prescaler=%lu, TSEG1=%lu, TSEG2=%lu, SJW=%lu\r\n", 
+//          prescaler, tseg1, tseg2, sjw);
+//   printf("  Sample Point = %.1f%%\r\n", 
+//          100.0 * (1.0 + tseg1) / (1.0 + tseg1 + tseg2));
+
+//   return 0;
+// }
 
 // Simple initialization for Classic CAN (alias for pcan_can_init_ex)
 int pcan_can_init(int bus, uint32_t bitrate) {
@@ -621,17 +798,43 @@ void pcan_can_set_bitrate_ex(int bus, uint16_t brp, uint8_t tseg1,
   }
 
   HAL_FDCAN_Start(p_can);
-  printf("CAN%d: Bitrate set (BRP=%u, TSEG1=%u, TSEG2=%u, SJW=%u)\r\n", 
-         bus + 1, brp, tseg1, tseg2, sjw);
+  printf("CAN%d: Bitrate set (BRP=%u, TSEG1=%u, TSEG2=%u, SJW=%u)\r\n", bus + 1,
+         brp, tseg1, tseg2, sjw);
 }
 
-static void pcan_can_tx_complete(int bus) { 
-  ++can_dev_array[bus].tx_msgs; 
+void pcan_can_set_bitrate_raw(int bus, uint16_t brp, uint8_t tseg1,
+                              uint8_t tseg2, uint8_t sjw, int is_data) {
+  FDCAN_HandleTypeDef *p_can = can_dev_array[bus].dev;
+
+  if (!p_can)
+    return;
+
+  HAL_FDCAN_Stop(p_can);
+
+  if (is_data) {
+    p_can->Init.DataPrescaler = brp;
+    p_can->Init.DataSyncJumpWidth = sjw;
+    p_can->Init.DataTimeSeg1 = tseg1;
+    p_can->Init.DataTimeSeg2 = tseg2;
+  } else {
+    p_can->Init.NominalPrescaler = brp;
+    p_can->Init.NominalSyncJumpWidth = sjw;
+    p_can->Init.NominalTimeSeg1 = tseg1;
+    p_can->Init.NominalTimeSeg2 = tseg2;
+  }
+
+  if (HAL_FDCAN_Init(p_can) != HAL_OK) {
+    assert(0);
+  }
+
+  HAL_FDCAN_Start(p_can);
+  printf("CAN%d: Raw Bitrate set (%s, BRP=%u, TSEG1=%u, TSEG2=%u, SJW=%u)\r\n",
+         bus + 1, is_data ? "DATA" : "NOMINAL", brp, tseg1, tseg2, sjw);
 }
 
-static void pcan_can_tx_err(int bus) { 
-  ++can_dev_array[bus].tx_errs; 
-}
+static void pcan_can_tx_complete(int bus) { ++can_dev_array[bus].tx_msgs; }
+
+static void pcan_can_tx_err(int bus) { ++can_dev_array[bus].tx_errs; }
 
 int pcan_can_stats(int bus, struct t_can_stats *p_stats) {
   struct t_can_dev *p_dev = &can_dev_array[bus];
@@ -688,12 +891,13 @@ static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
 
   msg.size = dlc_to_bytes(hdr.DataLength);
   msg.timestamp = pcan_timestamp_us();
-  printf("CAN%d RX: ID=0x%lX Len=%d Data=[", bus + 1, msg.id, msg.size);
-    for (int i = 0; i < msg.size; i++) {
-    printf("%02X", msg.data[i]);
-    if (i < msg.size - 1) printf(" ");
-  }
-  printf("]\r\n");
+  // printf("CAN%d RX: ID=0x%lX Len=%d Data=[", bus + 1, msg.id, msg.size);
+  // for (int i = 0; i < msg.size; i++) {
+  //   printf("%02X", msg.data[i]);
+  //   if (i < msg.size - 1)
+  //     printf(" ");
+  // }
+  // printf("]\r\n");
 
   if (p_dev->rx_isr) {
     if (p_dev->rx_isr(bus, &msg) < 0) {
@@ -702,14 +906,15 @@ static void pcan_can_isr_frame(FDCAN_HandleTypeDef *hcan, uint32_t fifo) {
       return;
     }
   }
-  
-  printf("CAN%d RX: ID=0x%lX Len=%d Data=[", bus + 1, msg.id, msg.size);
-  for (int i = 0; i < msg.size; i++) {
-    printf("%02X", msg.data[i]);
-    if (i < msg.size - 1) printf(" ");
-  }
-  printf("]\r\n");
-  
+
+ // printf("CAN%d RX: ID=0x%lX Len=%d Data=[", bus + 1, msg.id, msg.size);
+  // for (int i = 0; i < msg.size; i++) {
+  //   printf("%02X", msg.data[i]);
+  //   if (i < msg.size - 1)
+  //     printf(" ");
+  // }
+  // printf("]\r\n");
+
   ++p_dev->rx_msgs;
 }
 
@@ -722,7 +927,8 @@ void pcan_can_poll(void) {
   // POLLING MODE: Manually check RX FIFOs for all buses
   for (int bus = 0; bus < CAN_BUS_TOTAL; bus++) {
     FDCAN_HandleTypeDef *hcan = can_dev_array[bus].dev;
-    if (!hcan) continue;
+    if (!hcan)
+      continue;
 
     // Check and process all messages in FIFO0
     uint32_t fifo0_level = HAL_FDCAN_GetRxFifoFillLevel(hcan, FDCAN_RX_FIFO0);
@@ -751,12 +957,12 @@ void pcan_can_poll(void) {
   //     FDCAN_HandleTypeDef *pcan = can_dev_array[i].dev;
   //     if (!pcan)
   //       continue;
-      
+
   //     // uint32_t psr = pcan->Instance->PSR;
   //     // uint32_t fifo0 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO0);
   //     // uint32_t fifo1 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO1);
   //     // uint32_t tx_free = HAL_FDCAN_GetTxFifoFreeLevel(pcan);
-      
+
   //     // printf("==== CAN%d Status ====\r\n", i + 1);
   //     // printf("  PSR: 0x%08lX\r\n", psr);
   //     // printf("  FIFO0: %lu msg, FIFO1: %lu msg\r\n", fifo0, fifo1);

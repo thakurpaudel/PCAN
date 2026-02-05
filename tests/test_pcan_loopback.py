@@ -28,7 +28,7 @@ def test_pcan_communication():
     try:
 
         while(1):
-            msg_out = can.Message(arbitration_id=0x1000000, data=[0x01, 0x02, 0x03, 0x04], is_extended_id=False)
+            msg_out = can.Message(arbitration_id=0x100, data=[0x01, 0x02, 0x03, 0x04], is_extended_id=True)
             bus0.send(msg_out)
             msg_in = bus1.recv(timeout=1.0)
             if msg_in:
