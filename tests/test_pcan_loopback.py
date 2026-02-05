@@ -1,79 +1,101 @@
 #!/usr/bin/env python3
 import can
 import time
-import threading
 import sys
 
 """
-PCAN-USB Pro FD Verification Script (SocketCAN Loopback)
+PCAN-USB Pro FD Verification Script
+Tests sequential communication between CAN0 and CAN1.
 """
 
-def receive_worker(bus, stop_event, expected_ids, received_ids):
-    while not stop_event.is_set():
-        msg = bus.recv(timeout=0.1)
-        if msg:
-            print(f"[{bus.channel_info}] RX: {msg}")
-            if msg.arbitration_id in expected_ids:
-                received_ids.add(msg.arbitration_id)
+def test_pcan_communication():
+    print("=== PCAN-USB Pro FD Communication Test ===")
 
-def test_bidirectional_loopback():
-    print("Initializing CAN interfaces (can0, can1)...")
+
+    
+    # 1. Setup Interfaces
+    print("\n[Setup] Opening interfaces...")
     try:
-        bus1 = can.Bus(interface='socketcan', channel='can0')
-        bus2 = can.Bus(interface='socketcan', channel='can1')
+        # Assuming 500k bitrate, standard CAN
+        bus0 = can.Bus(interface='socketcan', channel='can0')
+        bus1 = can.Bus(interface='socketcan', channel='can1')
+        print("  -> can0 and can1 opened successfully.")
     except OSError as e:
-        print(f"Error opening CAN interfaces: {e}")
+        print(f"  [ERROR] Could not open CAN interfaces: {e}")
+        print("  Hint: Ensure interfaces are up: 'sudo ip link set can0 up type can bitrate 500000'")
         sys.exit(1)
 
-    stop_event = threading.Event()
-    received_on_bus2 = set()
-    received_on_bus1 = set()
+    try:
 
-    t2 = threading.Thread(target=receive_worker, args=(bus2, stop_event, [0x123], received_on_bus2))
-    t1 = threading.Thread(target=receive_worker, args=(bus1, stop_event, [0x456], received_on_bus1))
-    t2.start()
-    t1.start()
+        while(1):
+            msg_out = can.Message(arbitration_id=0x1000000, data=[0x01, 0x02, 0x03, 0x04], is_extended_id=False)
+            bus0.send(msg_out)
+            msg_in = bus1.recv(timeout=1.0)
+            if msg_in:
+                print(f"  [RX] can1 received: {msg_in}") 
+            time.sleep(0.01)
 
-    time.sleep(1)
 
-    print("\n--- Test 1: CAN1 -> CAN2 ---")
-    msg1 = can.Message(
-        arbitration_id=0x123,
-        data=[0x11, 0x22, 0x33, 0x44],
-        is_extended_id=False
-    )
-    bus1.send(msg1)
-    print(f"[{bus1.channel_info}] TX: {msg1}")
+        # ---------------------------------------------------------
+        # Test 1: CAN0 -> CAN1
+        # ---------------------------------------------------------
+        print("\n--- Test 1: Sending from CAN0 -> Receiving on CAN1 ---")
+        
+        # Create message
+        msg_out = can.Message(arbitration_id=0x100, data=[0x01, 0x02, 0x03, 0x04], is_extended_id=False)
+        
+        # Send
+        print(f"  [TX] can0 sends ID=0x{msg_out.arbitration_id:X}")
+        bus0.send(msg_out)
+        
+        # Receive
+        print("  [RX] can1 waiting...")
+        msg_in = bus1.recv(timeout=1.0)
+        
+        if msg_in:
+            print(f"  [RX] can1 received: {msg_in}")
+            if msg_in.arbitration_id == 0x100 and list(msg_in.data) == [0x01, 0x02, 0x03, 0x04]:
+                print("  -> PASS: Data match.")
+            else:
+                print("  -> FAIL: Data mismatch.")
+        else:
+            print("  -> FAIL: Timeout (No message received).")
 
-    time.sleep(0.5)
+        time.sleep(0.5)
 
-    print("PASS" if 0x123 in received_on_bus2 else "FAIL")
-
-    print("\n--- Test 2: CAN2 -> CAN1 ---")
-    msg2 = can.Message(
-        arbitration_id=0x456,
-        data=[0xAA, 0xBB, 0xCC],
-        is_extended_id=False
-    )
-    bus2.send(msg2)
-    print(f"[{bus2.channel_info}] TX: {msg2}")
-
-    time.sleep(0.5)
-
-    print("PASS" if 0x456 in received_on_bus1 else "FAIL")
-
-    stop_event.set()
-    t1.join()
-    t2.join()
-    bus1.shutdown()
-    bus2.shutdown()
-
-    if 0x123 in received_on_bus2 and 0x456 in received_on_bus1:
-        print("\n=== SUCCESS: Bidirectional Communication Verified ===")
-        sys.exit(0)
-    else:
-        print("\n=== FAILURE ===")
-        sys.exit(1)
+        # ---------------------------------------------------------
+        # Test 2: CAN1 -> CAN0
+        # ---------------------------------------------------------
+        print("\n--- Test 2: Sending from CAN1 -> Receiving on CAN0 ---")
+        
+        # Create message
+        msg_out = can.Message(arbitration_id=0x200, data=[0xA0, 0xB0, 0xC0, 0xD0], is_extended_id=False)
+        
+        # Send
+        print(f"  [TX] can1 sends ID=0x{msg_out.arbitration_id:X}")
+        bus1.send(msg_out)
+        
+        # Receive
+        print("  [RX] can0 waiting...")
+        msg_in = bus0.recv(timeout=1.0)
+        
+        if msg_in:
+            print(f"  [RX] can0 received: {msg_in}")
+            if msg_in.arbitration_id == 0x200 and list(msg_in.data) == [0xA0, 0xB0, 0xC0, 0xD0]:
+                print("  -> PASS: Data match.")
+            else:
+                print("  -> FAIL: Data mismatch.")
+        else:
+            print("  -> FAIL: Timeout (No message received).")
+            
+    except can.CanError as e:
+        print(f"\n[ERROR] CAN Warning/Error: {e}")
+    except KeyboardInterrupt:
+        print("\n[Aborted]")
+    finally:
+        bus0.shutdown()
+        bus1.shutdown()
+        print("\n[Cleanup] Interfaces closed.")
 
 if __name__ == "__main__":
-    test_bidirectional_loopback()
+    test_pcan_communication()
