@@ -51,11 +51,11 @@ void pcan_usb_device_init(void) {
 void pcan_usb_device_poll(void) {
   // Call HAL IRQ handler for USB events
   HAL_PCD_IRQHandler((PCD_HandleTypeDef *)hUsbDeviceFS.pData);
-
 }
 
 uint16_t pcan_usb_frame_number(void) {
-  uint32_t USBx_BASE =(uint32_t)(((PCD_HandleTypeDef *)hUsbDeviceFS.pData)->Instance);
+  uint32_t USBx_BASE =
+      (uint32_t)(((PCD_HandleTypeDef *)hUsbDeviceFS.pData)->Instance);
 
   return (USBx_DEVICE->DSTS >> 8u) & 0x3FFFu;
 }
@@ -63,7 +63,7 @@ uint16_t pcan_usb_frame_number(void) {
 int pcan_flush_ep(uint8_t ep) {
   USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
   struct t_class_data *p_data = (void *)pdev->pClassData;
-  printf("called pcan_flush_ep(%d, 0x%02X)\r\n",ep,ep);
+  printf("called pcan_flush_ep(%d, 0x%02X)\r\n", ep, ep);
   p_data->ep_tx_in_use[ep & 0x0F] = 0;
   return USBD_LL_FlushEP(pdev, ep) == USBD_OK;
 }
@@ -76,14 +76,14 @@ int pcan_flush_data(struct t_m2h_fsm *pfsm, void *src, int size) {
     printf("USB ERR: p_data is NULL\r\n");
     return 0;
   }
-  //printf("calling end poinst are %d, 0x%02X\r\n",  pfsm->ep_addr,  pfsm->ep_addr);
- 
+  // printf("calling end poinst are %d, 0x%02X\r\n",  pfsm->ep_addr,
+  // pfsm->ep_addr);
 
   switch (pfsm->state) {
   case 1:
     if (p_data->ep_tx_in_use[pfsm->ep_addr & 0x0F]) {
       // Still busy
-      //printf("USB BUSY: EP=0x%02X\r\n", pfsm->ep_addr);
+      // printf("USB BUSY: EP=0x%02X\r\n", pfsm->ep_addr);
       return 0;
     }
     pfsm->state = 0;

@@ -1,0 +1,59 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../Downloads/files"
+		},
+		{
+			"path": "../../../../../Downloads/files(4)"
+		},
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"makefile.launchConfigurations": [
+			{
+				"cwd": "/home/thakur/Documents/yatri/P2/pcan_pro_x/build-pro",
+				"binaryPath": "/home/thakur/Documents/yatri/P2/pcan_pro_x/build-pro/pro_20260127_DEVEBOX32F4_8MHz_USBHS.elf",
+				"binaryArgs": []
+			},
+			{
+				"cwd": "/home/thakur/Documents/yatri/PCAN/build",
+				"binaryPath": "/home/thakur/Documents/yatri/PCAN/build/pcan_pro.elf",
+				"binaryArgs": []
+			}
+		],
+		"stm32cube-ide-clangd.path": "cube",
+		"stm32cube-ide-clangd.arguments": [
+			"starm-clangd",
+			"--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc",
+			"--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-g++"
+		],
+		"C_Cpp.default.browse.limitSymbolsToIncludedHeaders": true,
+		"C_Cpp.autocompleteAddParentheses": true,
+		"stm32cube-ide-build-cmake.intellisense.enableAutomaticConfiguration": true,
+		"C_Cpp.default.intelliSenseMode": "gcc-arm",
+		"C_Cpp.default.mergeConfigurations": true,
+		"C_Cpp.default.cppStandard": "c++23"
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "build",
+				"type": "shell",
+				"command": "msbuild",
+				"args": [
+					"/property:GenerateFullPaths=true",
+					"/t:build",
+					"/consoleloggerparameters:NoSummary"
+				],
+				"group": "build",
+				"presentation": {
+					"reveal": "silent"
+				},
+				"problemMatcher": "$msCompile"
+			}
+		]
+	}
+}
