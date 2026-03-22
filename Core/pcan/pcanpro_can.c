@@ -27,7 +27,7 @@ static struct t_can_dev {
   uint32_t tx_tail;
   uint32_t esr_reg;
 
-  uint8_t fd_mode; // 0 = Classic CAN, 1 = CAN FD
+  uint8_t fd_mode;     // 0 = Classic CAN, 1 = CAN FD
   int (*rx_isr)(uint8_t, struct t_can_msg *);
   int (*tx_isr)(uint8_t, struct t_can_msg *);
   void (*err_handler)(int bus, uint32_t esr);
@@ -60,6 +60,7 @@ static uint32_t bytes_to_dlc(uint8_t bytes) {
   else
     return FDCAN_DLC_BYTES_64;
 }
+
 
 static uint32_t abs_diff_u32(uint32_t a, uint32_t b)
 {
@@ -210,34 +211,36 @@ uint32_t pcan_can_msg_time(const struct t_can_msg *pmsg, uint32_t nt,
 }
 
 int pcan_can_set_filter_mask(int bus, int num, int format, uint32_t id,
-                             uint32_t mask) {
-  FDCAN_FilterTypeDef filter = {0};
-  FDCAN_HandleTypeDef *p_can = can_dev_array[bus].dev;
+                             uint32_t mask)
+{
+    FDCAN_FilterTypeDef filter = {0};
+    FDCAN_HandleTypeDef *p_can;
+    p_can = can_dev_array[bus].dev;
+    if (p_can == NULL)
+        return -1;
 
-  if (!p_can)
+    if (format == MSG_FLAG_EXT) {
+        if (num < 0 || num >= (int)p_can->Init.ExtFiltersNbr)
+            return -1;
+        filter.IdType = FDCAN_EXTENDED_ID;
+        filter.FilterID1 = id & 0x1FFFFFFF;
+        filter.FilterID2 = mask & 0x1FFFFFFF;
+    } else {
+        if (num < 0 || num >= (int)p_can->Init.StdFiltersNbr)
+            return -1;
+        filter.IdType = FDCAN_STANDARD_ID;
+        filter.FilterID1 = id & 0x7FF;
+        filter.FilterID2 = mask & 0x7FF;
+    }
+
+    filter.FilterIndex = (uint32_t)num;
+    filter.FilterType = FDCAN_FILTER_MASK;
+    filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+
+    if (HAL_FDCAN_ConfigFilter(p_can, &filter) != HAL_OK)
+        return -1;
+
     return 0;
-
-  if (num >= CAN_INT_FILTER_MAX)
-    return -1;
-
-  filter.IdType =
-      (format == MSG_FLAG_EXT) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
-  filter.FilterIndex = num;
-  filter.FilterType = FDCAN_FILTER_MASK;
-  filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-
-  if (format == MSG_FLAG_EXT) {
-    filter.FilterID1 = id & 0x1FFFFFFF;
-    filter.FilterID2 = mask & 0x1FFFFFFF;
-  } else {
-    filter.FilterID1 = id & 0x7FF;
-    filter.FilterID2 = mask & 0x7FF;
-  }
-
-  if (HAL_FDCAN_ConfigFilter(p_can, &filter) != HAL_OK)
-    return -1;
-
-  return 0;
 }
 
 int pcan_can_filter_init_stdid_list(int bus, const uint16_t *id_list,
@@ -343,10 +346,6 @@ static void pcan_can_flush_tx(int bus) {
 
   if (!hcan)
     return;
-
-  // Drain as many frames as the HW TX FIFO has space for in one poll cycle.
-  // Previously this only sent ONE frame per call, causing the SW queue to
-  // stall when bursts arrived faster than the poll rate (FIFO full error).
   while (p_dev->tx_head != p_dev->tx_tail) {
     if (HAL_FDCAN_GetTxFifoFreeLevel(hcan) == 0) {
       // HW FIFO full - come back next poll cycle
@@ -525,60 +524,52 @@ static int _get_precalculated_bitrate(uint32_t bitrate, uint32_t *prescaler,
 
 int pcan_can_init_ex(int bus, uint32_t bitrate) {
   FDCAN_HandleTypeDef *p_can = can_dev_array[bus].dev;
-  uint32_t prescaler, tseg1, tseg2, sjw;
-
+  struct t_can_bitrate birateTiming ={0};
   if (!p_can)
     return 0;
 
   printf("=== CAN%d Init Start (POLLING MODE) ===\r\n", bus + 1);
-
   HAL_FDCAN_DeInit(p_can);
 
-  // Frame format: Classic CAN by default
-  p_can->Init.FrameFormat = FDCAN_FRAME_CLASSIC;
-  can_dev_array[bus].fd_mode = 0;
 
+
+  // Frame format: Classic CAN by default
+  p_can->Instance = (bus==CAN_BUS_1)?FDCAN1:FDCAN2;
+  p_can->Init.FrameFormat = FDCAN_FRAME_CLASSIC;
+  can_dev_array[bus].fd_mode = 0;    
   p_can->Init.Mode = FDCAN_MODE_NORMAL;
-  // ENABLE: Retransmit failed frames so the error counter (TEC) does not
-  // rise. With TxFifoQueueElmtsNbr=3, at most 3 frames can block at once
-  // instead of 32, so the deadlock window is tiny.
   p_can->Init.AutoRetransmission = ENABLE;
-  // DISABLE: TransmitPause adds a 2-bit gap between frames. Not needed here;
-  // keeping DISABLE restores known-good init behaviour.
   p_can->Init.TransmitPause = DISABLE;
   p_can->Init.ProtocolException = DISABLE;
 
   // Nominal bit timing (for arbitration phase)
-  _get_precalculated_bitrate(bitrate, &prescaler, &tseg1, &tseg2, &sjw);
 
-  p_can->Init.NominalPrescaler = prescaler;
-  p_can->Init.NominalSyncJumpWidth = sjw;
-  p_can->Init.NominalTimeSeg1 = tseg1;
-  p_can->Init.NominalTimeSeg2 = tseg2;
+  (void)stm32h7_fdcan_calc_bittiming(HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_FDCAN),bitrate,875U,&birateTiming);
+
+  p_can->Init.NominalPrescaler = birateTiming.brp;
+  p_can->Init.NominalSyncJumpWidth = birateTiming.sjw;
+  p_can->Init.NominalTimeSeg1 = birateTiming.tseg1;
+  p_can->Init.NominalTimeSeg2 = birateTiming.tseg2;
 
   // Data bit timing (same as nominal for classic CAN)
-  p_can->Init.DataPrescaler = prescaler;
-  p_can->Init.DataSyncJumpWidth = sjw;
-  p_can->Init.DataTimeSeg1 = tseg1;
-  p_can->Init.DataTimeSeg2 = tseg2;
+  p_can->Init.DataPrescaler =  birateTiming.brp;
+  p_can->Init.DataSyncJumpWidth = birateTiming.sjw;
+  p_can->Init.DataTimeSeg1 = birateTiming.tseg1;
+  p_can->Init.DataTimeSeg2 = birateTiming.tseg2;
 
   // Message RAM configuration
   p_can->Init.MessageRAMOffset = (bus == CAN_BUS_1) ? 0 : 1280;
   p_can->Init.StdFiltersNbr = 28;
   p_can->Init.ExtFiltersNbr = 8;
-  p_can->Init.RxFifo0ElmtsNbr = 16;
+  p_can->Init.RxFifo0ElmtsNbr = 64;
   p_can->Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_8;
   p_can->Init.RxFifo1ElmtsNbr = 16;
   p_can->Init.RxFifo1ElmtSize = FDCAN_DATA_BYTES_8;
-  p_can->Init.RxBuffersNbr = 0;
+  p_can->Init.RxBuffersNbr = 64;
   p_can->Init.RxBufferSize = FDCAN_DATA_BYTES_8;
   p_can->Init.TxEventsNbr = 0;
   p_can->Init.TxBuffersNbr = 0;
-  // 3 slots: STM32H7 FDCAN has 3 physical TX buffers. Keeping HW FIFO small
-  // means the 256-entry SW ring buffer (pcan_can_flush_tx loop) controls
-  // pacing. A large HW FIFO of 32 hides saturation and stalls 32 frames at
-  // once when the bus goes silent.
-  p_can->Init.TxFifoQueueElmtsNbr = 3;
+  p_can->Init.TxFifoQueueElmtsNbr = 32;
   p_can->Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   p_can->Init.TxElmtSize = FDCAN_DATA_BYTES_8;
 
@@ -596,11 +587,6 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
     return -1;
   }
   printf("CAN%d: Global Filter Config OK (Accept All)\r\n", bus + 1);
-
-  // IMPORTANT: DO NOT activate notifications in polling mode!
-  // Notifications are for interrupt-driven mode only
-  // Removed: HAL_FDCAN_ActivateNotification(p_can, FDCAN_IT_FLAGS, 0);
-
   if (HAL_FDCAN_Start(p_can) != HAL_OK) {
     printf("CAN%d: HAL_FDCAN_Start FAILED!\r\n", bus + 1);
     return -1;
@@ -611,8 +597,8 @@ int pcan_can_init_ex(int bus, uint32_t bitrate) {
   printf("CAN%d: Started OK, PSR=0x%08lX\r\n", bus + 1, psr);
   printf("CAN%d: Init Classic @ %u bps (POLLING MODE - No ISR)\r\n", bus + 1,
          (unsigned int)bitrate);
-  printf("CAN%d: Prescaler=%lu, TSEG1=%lu, TSEG2=%lu, SJW=%lu\r\n", bus + 1,
-         prescaler, tseg1, tseg2, sjw);
+  printf("CAN%d: Prescaler=%u, TSEG1=%u, TSEG2=%u, SJW=%u\r\n", bus + 1,
+         birateTiming.brp, birateTiming.tseg1, birateTiming.tseg2, birateTiming.sjw);
 
   return 0;
 }
@@ -1012,25 +998,28 @@ void pcan_can_set_bitrate_ex(int bus, uint16_t brp, uint8_t tseg1,
          brp, tseg1, tseg2, sjw);
 }
 
-void pcan_can_set_bitrate_raw(int bus, uint16_t brp, uint8_t tseg1,
-                              uint8_t tseg2, uint8_t sjw, int is_data) {
+void pcan_can_set_bitrate_raw(int bus, int bitrate,int is_data) {
   FDCAN_HandleTypeDef *p_can = can_dev_array[bus].dev;
+  struct t_can_bitrate birateTiming;
+  
 
   if (!p_can)
     return;
 
   HAL_FDCAN_Stop(p_can);
 
+  (void)stm32h7_fdcan_calc_bittiming(HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_FDCAN),bitrate,875U,&birateTiming);
+
   if (is_data) {
-    p_can->Init.DataPrescaler = brp;
-    p_can->Init.DataSyncJumpWidth = sjw;
-    p_can->Init.DataTimeSeg1 = tseg1;
-    p_can->Init.DataTimeSeg2 = tseg2;
+    p_can->Init.DataPrescaler = birateTiming.brp;
+    p_can->Init.DataSyncJumpWidth = birateTiming.sjw;
+    p_can->Init.DataTimeSeg1 = birateTiming.tseg1;
+    p_can->Init.DataTimeSeg2 = birateTiming.tseg2;
   } else {
-    p_can->Init.NominalPrescaler = brp;
-    p_can->Init.NominalSyncJumpWidth = sjw;
-    p_can->Init.NominalTimeSeg1 = tseg1;
-    p_can->Init.NominalTimeSeg2 = tseg2;
+    p_can->Init.NominalPrescaler = birateTiming.brp;
+    p_can->Init.NominalSyncJumpWidth = birateTiming.sjw;
+    p_can->Init.NominalTimeSeg1 = birateTiming.tseg1;
+    p_can->Init.NominalTimeSeg2 = birateTiming.tseg2;
   }
 
   if (HAL_FDCAN_Init(p_can) != HAL_OK) {
@@ -1039,7 +1028,7 @@ void pcan_can_set_bitrate_raw(int bus, uint16_t brp, uint8_t tseg1,
 
   HAL_FDCAN_Start(p_can);
   printf("CAN%d: Raw Bitrate set (%s, BRP=%u, TSEG1=%u, TSEG2=%u, SJW=%u)\r\n",
-         bus + 1, is_data ? "DATA" : "NOMINAL", brp, tseg1, tseg2, sjw);
+         bus + 1, is_data ? "DATA" : "NOMINAL", birateTiming.brp, birateTiming.tseg1, birateTiming.tseg2, birateTiming.sjw);
 }
 
 static void pcan_can_tx_complete(int bus) { ++can_dev_array[bus].tx_msgs; }
@@ -1159,36 +1148,6 @@ void pcan_can_poll(void) {
   pcan_can_flush_tx(CAN_BUS_1);
   pcan_can_flush_tx(CAN_BUS_2);
 
-  // Periodic CAN bus status debug (every 5 seconds)
-  // static uint32_t last_status_print = 0;
-  // if ((ts_ms - last_status_print) > 5000) {
-  //   last_status_print = ts_ms;
-  //   for (int i = 0; i < CAN_BUS_TOTAL; i++) {
-  //     FDCAN_HandleTypeDef *pcan = can_dev_array[i].dev;
-  //     if (!pcan)
-  //       continue;
-
-  //     // uint32_t psr = pcan->Instance->PSR;
-  //     // uint32_t fifo0 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO0);
-  //     // uint32_t fifo1 = HAL_FDCAN_GetRxFifoFillLevel(pcan, FDCAN_RX_FIFO1);
-  //     // uint32_t tx_free = HAL_FDCAN_GetTxFifoFreeLevel(pcan);
-
-  //     // printf("==== CAN%d Status ====\r\n", i + 1);
-  //     // printf("  PSR: 0x%08lX\r\n", psr);
-  //     // printf("  FIFO0: %lu msg, FIFO1: %lu msg\r\n", fifo0, fifo1);
-  //     // printf("  TX Free: %lu\r\n", tx_free);
-  //     // printf("  RX: %lu, TX: %lu, ERR: %lu, OVF: %lu\r\n",
-  //     //        can_dev_array[i].rx_msgs, can_dev_array[i].tx_msgs,
-  //     //        can_dev_array[i].tx_errs, can_dev_array[i].rx_ovfs);
-  //   }
-  // }
-
-  // Error status reporting (every 250ms)
-  // NOTE: Bus-off recovery via Stop/Start was removed because it was
-  // unconditionally resetting the FDCAN peripheral every 250ms, breaking all
-  // transmission. Bus-off should not occur with AutoRetransmission=ENABLE on
-  // a healthy bus. If bus-off is ever seen in the UART log, perform a full
-  // re-init by calling pcan_can_init_ex() from the application layer.
   if ((uint32_t)(ts_ms - err_last_check) > 250) {
     err_last_check = ts_ms;
     for (int i = 0; i < CAN_BUS_TOTAL; i++) {
@@ -1208,8 +1167,7 @@ void pcan_can_poll(void) {
   }
 }
 
-/* HAL MSP Init/DeInit are handled by CubeMX-generated code in fdcan.c */
-/* These callbacks are NOT needed in polling mode, but kept for compatibility */
+
 
 /* FDCAN HAL Callbacks - These will NOT be called in polling mode! */
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef *hcan) {
@@ -1217,6 +1175,7 @@ void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef *hcan) {
   pcan_can_tx_complete(bus);
 }
 
+//@TODO::
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hcan, uint32_t RxFifo0ITs) {
   if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
     pcan_can_isr_frame(hcan, FDCAN_RX_FIFO0);

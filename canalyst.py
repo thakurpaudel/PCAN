@@ -23,6 +23,7 @@ def main():
 
     try:
         count = 0
+        count_send =0
         while True:
             
             msg = can.Message(
@@ -31,8 +32,9 @@ def main():
             
                     )
            
-            #bus.send(msg)
-            msg = bus.recv(timeout=1.0)
+            bus.send(msg)
+            msg = bus.recv(timeout=.1)
+            count_send +=1;
 
             if msg is None:
                 continue

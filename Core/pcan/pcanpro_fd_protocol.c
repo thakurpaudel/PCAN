@@ -325,8 +325,8 @@ static int pcan_protocol_send_status(uint8_t channel, uint8_t status) {
 int pcan_protocol_set_baudrate(uint8_t channel, struct t_can_bitrate *pbitrate,
                                struct t_can_bitrate *pdata_bitrate) {
 
-   printf("from the baud rate setup\r\n");
-#define PCAN_STM32_SYSCLK_HZ (120000000u)
+  //  printf("from the baud rate setup\r\n");
+// #define PCAN_STM32_SYSCLK_HZ (120000000u)
   uint32_t bitrate, stm32_brp;
   struct t_can_bitrate *pcur;
   int is_data = 0;
@@ -343,17 +343,9 @@ int pcan_protocol_set_baudrate(uint8_t channel, struct t_can_bitrate *pbitrate,
   if (stm32_brp == 0)
     stm32_brp = 1;
 
-  bitrate = (((pcan_device.can[channel].can_clock) / pcur->brp) /
-             (1 /*tq*/ + pcur->tseg1 + pcur->tseg2));
-
-  uint8_t tseg1_reg = (pcur->tseg1 > 0) ? pcur->tseg1 - 1 : 0;
-  uint8_t tseg2_reg = (pcur->tseg2 > 0) ? pcur->tseg2 - 1 : 0;
-  uint8_t sjw_reg = (pcur->sjw > 0) ? pcur->sjw - 1 : 0;
-
-  printf("From Baud rate setup=%d\r\n", is_data);
-  pcan_can_set_bitrate_raw(channel, stm32_brp, tseg1_reg, tseg2_reg, sjw_reg,
-                           is_data);
-
+  bitrate = (((pcan_device.can[channel].can_clock) / pcur->brp) /(1 + pcur->tseg1 + pcur->tseg2));
+  pcan_can_set_bitrate_raw(channel,  bitrate,is_data);
+  printf("Bitrate =%d\r\n", (int)bitrate);
   if (is_data) {
     pcan_device.can[channel].data_qt = 1000000000u / bitrate;
   } else {
@@ -415,28 +407,26 @@ static void pcan_protocol_process_cmd(uint8_t *ptr, uint16_t size) {
         br.tseg2 = ptiming->tseg2 + 1;
         br.sjw = (ptiming->sjw_t & 0x0f) + 1;
         (void)((ptiming->sjw_t & 0x80) != 0);
-        int total_tq = br.tseg1+ br.tseg2 +1;
-        int bitrate =  pcan_device.can[UCAN_CMD_CHANNEL(pcmd)].can_clock/(br.brp*total_tq);
-        printf(" request bit rate =%d\r\n", bitrate);
-        printf("from Slow FD can\r\n");
-        printf("clock request from the PC=%d\r\n", pcan_device.can[UCAN_CMD_CHANNEL(pcmd)].can_clock);
-        uint32_t clk = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_FDCAN);
-        printf("FDCAN clock = %lu Hz\r\n", (unsigned long)clk);
+        
+        // printf("from Slow FD can\r\n");
+        // printf("clock request from the PC=%d\r\n", pcan_device.can[UCAN_CMD_CHANNEL(pcmd)].can_clock);
+        // uint32_t clk = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_FDCAN);
+        // printf("FDCAN clock = %lu Hz\r\n", (unsigned long)clk);
         
 
-        printf("UCAN_CMD_TIMING_SLOW received:\r\n");
-        printf("  channel      = %u\r\n", UCAN_CMD_CHANNEL(pcmd));
-        printf("  raw brp      = %u\r\n", ptiming->brp);
-        printf("  raw tseg1    = %u\r\n", ptiming->tseg1);
-        printf("  raw tseg2    = %u\r\n", ptiming->tseg2);
-        printf("  raw sjw_t    = 0x%02X\r\n", ptiming->sjw_t);
-        printf("  triple_samp  = %u\r\n", (ptiming->sjw_t & 0x80) ? 1 : 0);
+        // printf("UCAN_CMD_TIMING_SLOW received:\r\n");
+        // printf("  channel      = %u\r\n", UCAN_CMD_CHANNEL(pcmd));
+        // printf("  raw brp      = %u\r\n", ptiming->brp);
+        // printf("  raw tseg1    = %u\r\n", ptiming->tseg1);
+        // printf("  raw tseg2    = %u\r\n", ptiming->tseg2);
+        // printf("  raw sjw_t    = 0x%02X\r\n", ptiming->sjw_t);
+        // printf("  triple_samp  = %u\r\n", (ptiming->sjw_t & 0x80) ? 1 : 0);
 
-        printf("Decoded CAN timing:\r\n");
-        printf("  brp          = %u\r\n", br.brp);
-        printf("  tseg1        = %u\r\n", br.tseg1);
-        printf("  tseg2        = %u\r\n", br.tseg2);
-        printf("  sjw          = %u\r\n", br.sjw);
+        // printf("Decoded CAN timing:\r\n");
+        // printf("  brp          = %u\r\n", br.brp);
+        // printf("  tseg1        = %u\r\n", br.tseg1);
+        // printf("  tseg2        = %u\r\n", br.tseg2);
+        // printf("  sjw          = %u\r\n", br.sjw);
         pcan_protocol_set_baudrate(UCAN_CMD_CHANNEL(pcmd), &br, 0);
       }
       break;
@@ -598,9 +588,6 @@ void pcan_protocol_init(void) {
   pcan_can_init_ex(CAN_BUS_2, 250000);
   pcan_can_set_filter_mask(CAN_BUS_2, 0, 0, 0, 0);
 
-  // pcan_can_set_iso_mode(CAN_BUS_1, 0);
-  // pcan_can_set_iso_mode(CAN_BUS_2, 0);
-
   pcan_can_install_rx_callback(CAN_BUS_1, pcan_protocol_rx_frame);
   pcan_can_install_rx_callback(CAN_BUS_2, pcan_protocol_rx_frame);
 
@@ -628,20 +615,6 @@ void pcan_protocol_poll(void) {
       pcan_device.last_time_flush = ts_us;
     }
   }
-#if 0
-  else
-  {
-    ts_us -= pcan_device.last_time_flush;
-    if( pcan_device.last_time_flush && ( ts_us > 800 ) )
-    {
-      int res = pcan_flush_data( &resp_fsm[1], 0, 0 );
-      if( res )
-      {
-        pcan_device.last_time_flush = 0;
-      }
-    }
-  }
-#endif
 
   /* timesync part */
   if (!pcan_device.can_drv_loaded)

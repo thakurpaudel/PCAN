@@ -69,8 +69,7 @@ void pcan_can_set_bus_active(int bus, uint16_t mode);
 void pcan_can_set_bitrate(int bus, uint32_t bitrate, int is_data_bitrate);
 void pcan_can_set_bitrate_ex(int bus, uint16_t brp, uint8_t tseg1,
                              uint8_t tseg2, uint8_t sjw);
-void pcan_can_set_bitrate_raw(int bus, uint16_t brp, uint8_t tseg1,
-                              uint8_t tseg2, uint8_t sjw, int is_data);
+void pcan_can_set_bitrate_raw(int bus, int bit_rate,int is_data);
 
 // Message transmission
 int pcan_can_write(int bus, struct t_can_msg *p_msg);
