@@ -93,7 +93,7 @@ static struct pcan_ufd_fw_info fw_info __attribute__((aligned(4))) = {
     .hw_version = 1,
     .fw_version = {1, 3, 3},
     .dev_id = 0,
-    .ser_no = 12345,
+    .ser_no = PCAN_SERIAL_NUMBER,
     .flags = 0,
     .cmd_out_ep = 0x03,
     .cmd_in_ep = 0x83,
@@ -115,7 +115,7 @@ static struct pcan_usbpro_usb_chipid usb_chid_info
 
 static struct pcan_usbpro_device_nr dev_nr_info __attribute__((aligned(4))) = {
     .ctrl_type = DEVICE_NR_STRUCT_TYPE,
-    .device_nr = 0xFFFFFFFF,
+    .device_nr = PCAN_DEVICE_NUMBER,
 };
 
 static struct pcan_usbpro_cpld_info cpld_info __attribute__((aligned(4))) = {

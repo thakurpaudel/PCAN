@@ -28,13 +28,14 @@ def main():
             
             msg = can.Message(
             
-                    arbitration_id=0xC0FFEE, data=[count % 256], is_extended_id=True
+                    arbitration_id=0xC0FFEE, data=[count_send % 256], is_extended_id=True
             
                     )
            
             bus.send(msg)
-            msg = bus.recv(timeout=.1)
-            count_send +=1;
+            msg = bus.recv(timeout=.001)
+            count_send +=1
+            print(f"send frame count ={count_send}")
 
             if msg is None:
                 continue

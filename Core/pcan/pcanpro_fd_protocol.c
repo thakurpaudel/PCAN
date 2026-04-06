@@ -66,8 +66,8 @@ static struct {
 } pcan_device = {
     .device_nr = 0xFFFFFFFF,
 
-    .can[0] = {.channel_nr = 0xFFFFFFFF, .can_clock = 120000000u},
-    .can[1] = {.channel_nr = 0xFFFFFFFF, .can_clock = 120000000u},
+    .can[0] = {.channel_nr = 0xFFFFFFF1, .can_clock = 120000000u},
+    .can[1] = {.channel_nr = 0xFFFFFFF0, .can_clock = 120000000u},
 };
 
 #define PCAN_USB_DATA_BUFFER_SIZE 2048

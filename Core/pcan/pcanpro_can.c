@@ -1001,8 +1001,6 @@ void pcan_can_set_bitrate_ex(int bus, uint16_t brp, uint8_t tseg1,
 void pcan_can_set_bitrate_raw(int bus, int bitrate,int is_data) {
   FDCAN_HandleTypeDef *p_can = can_dev_array[bus].dev;
   struct t_can_bitrate birateTiming;
-  
-
   if (!p_can)
     return;
 
@@ -1020,6 +1018,7 @@ void pcan_can_set_bitrate_raw(int bus, int bitrate,int is_data) {
     p_can->Init.NominalSyncJumpWidth = birateTiming.sjw;
     p_can->Init.NominalTimeSeg1 = birateTiming.tseg1;
     p_can->Init.NominalTimeSeg2 = birateTiming.tseg2;
+    
   }
 
   if (HAL_FDCAN_Init(p_can) != HAL_OK) {

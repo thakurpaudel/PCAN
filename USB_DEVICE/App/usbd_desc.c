@@ -23,10 +23,7 @@
 #include "usbd_conf.h"
 #include "usbd_core.h"
 
-
-/* USER CODE BEGIN INCLUDE */
-
-/* USER CODE END INCLUDE */
+#include "pcanpro_protocol.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -67,7 +64,7 @@
 #define USBD_VID 0x0C72
 #define USBD_LANGID_STRING 1033
 #define USBD_MANUFACTURER_STRING "PEAK-System Technik GmbH"
-#define USBD_PID_FS 0x0011  // this for the pro-fd class
+#define USBD_PID_FS 0x0011 // this for the pro-fd class
 #define USBD_PRODUCT_STRING_FS "PCAN-USB Pro FD"
 #define USBD_CONFIGURATION_STRING_FS "PCAN-USB Pro FD Config"
 #define USBD_INTERFACE_STRING_FS "PCAN-USB Pro FD Interface"
@@ -336,20 +333,13 @@ uint8_t *USBD_FS_InterfaceStrDescriptor(USBD_SpeedTypeDef speed,
  * @retval None
  */
 static void Get_SerialNum(void) {
-  uint32_t deviceserial0;
-  uint32_t deviceserial1;
-  uint32_t deviceserial2;
+  /* Use the PCAN_SERIAL_NUMBER from protocol config for consistency */
+  uint32_t deviceserial = PCAN_SERIAL_NUMBER;
 
-  deviceserial0 = *(uint32_t *)DEVICE_ID1;
-  deviceserial1 = *(uint32_t *)DEVICE_ID2;
-  deviceserial2 = *(uint32_t *)DEVICE_ID3;
-
-  deviceserial0 += deviceserial2;
-
-  if (deviceserial0 != 0) {
-    IntToUnicode(deviceserial0, &USBD_StringSerial[2], 8);
-    IntToUnicode(deviceserial1, &USBD_StringSerial[18], 4);
-  }
+  /* Form a 12-character hex string as originally expected by the descriptor
+   * size */
+  IntToUnicode(0, &USBD_StringSerial[2], 4);             // Leading zeros
+  IntToUnicode(deviceserial, &USBD_StringSerial[10], 8); // Serial value
 }
 
 /**

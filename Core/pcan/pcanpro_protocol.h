@@ -5,6 +5,10 @@
 #define PCAN_USB_BUFFER_CMD  (0)
 #define PCAN_USB_BUFFER_DATA (1)
 
+// PCAN-USB Pro FD Configuration
+#define PCAN_SERIAL_NUMBER   0x00003039 // Decimal 12345
+#define PCAN_DEVICE_NUMBER   0xFFFFFFFF
+
 void pcan_protocol_init( void );
 void pcan_protocol_poll( void );
 void pcan_protocol_process_data( uint8_t ep, uint8_t *ptr, uint16_t size );
