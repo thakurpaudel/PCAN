@@ -108,8 +108,12 @@ static struct t_m2h_fsm resp_fsm[2] = {
     }};
 
 /* low level requests */
+#if defined(ESP_PLATFORM)
+bool pcan_protocol_device_setup(tusb_control_request_t const * req) {
+#else
 uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
                                    USBD_SetupReqTypedef *req) {
+#endif
   switch (req->bRequest) {
   case USB_VENDOR_REQUEST_INFO:
     switch (req->wValue) {
@@ -142,7 +146,11 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
       fwi.dev_id[0] = pcan_device.can[0].channel_nr;
       fwi.dev_id[1] = pcan_device.can[1].channel_nr;
       fwi.ser_no = pcan_device.device_nr;
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&fwi, fwi.size_of);
+#else
       return USBD_CtlSendData(pdev, (void *)&fwi, fwi.size_of);
+#endif
     }
     default:
       assert(0);
@@ -154,8 +162,12 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
     case USB_VENDOR_REQUEST_wVALUE_SETFKT_BOOT:
       break;
     case USB_VENDOR_REQUEST_wVALUE_SETFKT_INTERFACE_DRIVER_LOADED: {
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, drv_load_packet, req->wLength);
+#else
       USBD_CtlPrepareRx(pdev, drv_load_packet, 16);
       return USBD_OK;
+#endif
     } break;
     default:
       assert(0);
@@ -165,11 +177,19 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
   case USB_VENDOR_REQUEST_ZERO:
     break;
   default:
+#if defined(ESP_PLATFORM)
+    return false;
+#else
     USBD_CtlError(pdev, req);
     return USBD_FAIL;
+#endif
   }
 
+#if defined(ESP_PLATFORM)
+  return false;
+#else
   return USBD_FAIL;
+#endif
 }
 
 void pcan_ep0_receive(void) {
@@ -609,7 +629,12 @@ void pcan_protocol_poll(void) {
     /* align to 64 */
     flush_size += (64 - 1);
     flush_size &= ~(64 - 1);
+#if defined(ESP_PLATFORM)
+    extern bool pcan_usb_transmit(uint8_t ep, uint8_t *buf, uint16_t size);
+    int res = pcan_usb_transmit(PCAN_USB_EP_MSGIN_CH1, data_buffer, flush_size);
+#else
     int res = pcan_flush_data(&resp_fsm[1], data_buffer, flush_size);
+#endif
     if (res) {
       data_pos = 0;
       pcan_device.last_time_flush = ts_us;
@@ -641,7 +666,11 @@ void pcan_protocol_poll(void) {
   if (!pts)
     return;
 
+#if defined(ESP_PLATFORM)
+  pts->usb_frame_index = 0; // tud_frame_number() could be used if needed
+#else
   pts->usb_frame_index = pcan_usb_frame_number();
+#endif
   pts->unused = 0;
   pcan_device.last_time_sync = ts_ms;
 

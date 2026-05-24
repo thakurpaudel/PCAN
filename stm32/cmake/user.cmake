@@ -41,7 +41,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     # PCAN sources
     ${CMAKE_SOURCE_DIR}/Core/pcan/pcanpro_can.c
     ${CMAKE_SOURCE_DIR}/../pcan_common/pcanpro_led.c
-    ${CMAKE_SOURCE_DIR}/Core/pcan/pcanpro_fd_protocol.c
+    ${CMAKE_SOURCE_DIR}/../pcan_common/pcanpro_fd_protocol.c
     ${CMAKE_SOURCE_DIR}/../pcan_common/pcanpro_timestamp.c
     ${CMAKE_SOURCE_DIR}/Core/pcan/pcanpro_usbd.c
     ${CMAKE_SOURCE_DIR}/Core/pcan/pcan_usb.c
