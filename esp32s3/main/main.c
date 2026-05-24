@@ -4,6 +4,7 @@
 #include "tusb.h"
 #include "pcanpro_protocol.h"
 #include "device/usbd_pvt.h" // For custom driver
+#include "esp_private/usb_phy.h"
 
 #define EP_CMD_OUT        0x01
 #define EP_CMD_IN         0x81
@@ -111,6 +112,18 @@ void dummy_force_descriptors(void) {
 void app_main(void) {
     printf("Starting PCAN ESP32-S3 Firmware...\n");
     dummy_force_descriptors();
+
+    printf("Initializing USB PHY...\n");
+    usb_phy_config_t phy_conf = {
+        .controller = USB_PHY_CTRL_OTG,
+        .target = USB_PHY_TARGET_INT,
+        .otg_mode = USB_OTG_MODE_DEVICE,
+        .otg_speed = USB_PHY_SPEED_UNDEFINED,
+        .ext_io_conf = NULL,
+        .otg_io_conf = NULL,
+    };
+    usb_phy_handle_t phy_hdl;
+    ESP_ERROR_CHECK(usb_new_phy(&phy_conf, &phy_hdl));
     
     // Init PCAN Protocol
     pcan_protocol_init();

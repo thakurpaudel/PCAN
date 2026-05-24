@@ -1,6 +1,6 @@
 idf_component_register(SRCS "main.c" "usb_descriptors.c" "pcan_twai.c" "pcanpro_protocol.c" "pcanpro_timestamp.c"
                     INCLUDE_DIRS "."
-                    REQUIRES espressif__tinyusb driver esp_timer)
+                    REQUIRES espressif__tinyusb driver esp_timer usb)
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE PCAN_PRO)
 
