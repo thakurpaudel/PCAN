@@ -60,8 +60,18 @@ static uint16_t pcan_open(uint8_t rhport, tusb_desc_interface_t const * itf_desc
 static bool pcan_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const * request) {
     if (stage == CONTROL_STAGE_SETUP) {
         return pcan_protocol_device_setup(request);
+    } else if (stage == CONTROL_STAGE_ACK) {
+        if (request->bRequest == USB_VENDOR_REQUEST_FKT && 
+            request->wValue == USB_VENDOR_REQUEST_wVALUE_SETFKT_INTERFACE_DRIVER_LOADED) {
+            pcan_ep0_receive();
+        }
     }
     return true;
+}
+
+// Global control transfer callback for vendor requests (recipient device/interface/endpoint)
+bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const * request) {
+    return pcan_control_xfer_cb(rhport, stage, request);
 }
 
 static bool pcan_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t result, uint32_t xferred_bytes) {

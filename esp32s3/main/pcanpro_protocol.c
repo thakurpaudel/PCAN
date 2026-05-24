@@ -165,36 +165,34 @@ static struct t_m2h_fsm resp_fsm[2] = {
 /* low level requests */
 bool pcan_protocol_device_setup(tusb_control_request_t const * req) {
   switch (req->bRequest) {
-  case 0x01: // USB_VENDOR_REQUEST_INFO
+  case USB_VENDOR_REQUEST_INFO:
     printf("PCAN: Info Req 0x%04X\n", req->wValue);
     switch (req->wValue) {
-    case 0x01: // BOOTLOADER
+    case USB_VENDOR_REQUEST_wVALUE_INFO_BOOTLOADER:
       return tud_control_xfer(0, req, (void *)&bi_info, sizeof(bi_info));
-    case 0x02: // FIRMWARE
+    case USB_VENDOR_REQUEST_wVALUE_INFO_FIRMWARE:
       return tud_control_xfer(0, req, (void *)&fw_info, sizeof(fw_info));
-    case 0x03: // uC_CHIPID
+    case USB_VENDOR_REQUEST_wVALUE_INFO_uC_CHIPID:
       return tud_control_xfer(0, req, (void *)&uc_chid_info, sizeof(uc_chid_info));
-    case 0x04: // USB_CHIPID
+    case USB_VENDOR_REQUEST_wVALUE_INFO_USB_CHIPID:
       return tud_control_xfer(0, req, (void *)&usb_chid_info, sizeof(usb_chid_info));
-    case 0x05: // DEVICENR
+    case USB_VENDOR_REQUEST_wVALUE_INFO_DEVICENR:
       return tud_control_xfer(0, req, (void *)&dev_nr_info, sizeof(dev_nr_info));
-    case 0x06: // CPLD
+    case USB_VENDOR_REQUEST_wVALUE_INFO_CPLD:
       return tud_control_xfer(0, req, (void *)&cpld_info, sizeof(cpld_info));
-    case 0x07: // MODE
+    case USB_VENDOR_REQUEST_wVALUE_INFO_MODE:
       return tud_control_xfer(0, req, (void *)&info_mode_data, sizeof(info_mode_data));
-    case 0x08: // TIMEMODE
+    case USB_VENDOR_REQUEST_wVALUE_INFO_TIMEMODE:
       return tud_control_xfer(0, req, (void *)&time_mode_info, sizeof(time_mode_info));
     default:
       return false;
     }
     break;
 
-  case 0x04: // USB_VENDOR_REQUEST_FKT
+  case USB_VENDOR_REQUEST_FKT:
     switch (req->wValue) {
-    case 0x02: // DRIVER_LOADED
-      // Normally we would prepare rx, but for simplicity we assume driver loaded
-      pcan_ep0_receive();
-      return tud_control_status(0, req);
+    case USB_VENDOR_REQUEST_wVALUE_SETFKT_INTERFACE_DRIVER_LOADED:
+      return tud_control_xfer(0, req, drv_load_packet, req->wLength);
     default:
       return tud_control_status(0, req); // Silently accept other vendor functions
     }

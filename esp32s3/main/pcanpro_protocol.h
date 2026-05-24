@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
-#include <stdint.h>
 #include "tusb.h"
+#include "pcan_usbpro_fw.h"
 
 #define PCAN_USB_BUFFER_CMD  (0)
 #define PCAN_USB_BUFFER_DATA (1)
