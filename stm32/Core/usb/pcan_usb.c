@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <string.h> // For memcpy
 
-extern USBD_HandleTypeDef hUsbDeviceFS;
-extern USBD_DescriptorsTypeDef FS_Desc;
+USBD_HandleTypeDef hUsbDeviceFS;
+extern USBD_DescriptorsTypeDef usbd_desc;
 // extern PCD_HandleTypeDef hpcd_usb; // Using default CubeMX handle if
 // available
 extern void Error_Handler(void);
@@ -25,7 +25,7 @@ void pcan_usb_device_init(void) {
   usbd_dev = hUsbDeviceFS;
 
   /* Init Device Library, add supported class and start the library. */
-  if (USBD_Init(&hUsbDeviceFS, &FS_Desc, USB_MODULE_ID) != USBD_OK) {
+  if (USBD_Init(&hUsbDeviceFS, &usbd_desc, USB_MODULE_ID) != USBD_OK) {
     Error_Handler();
   }
   if (USBD_RegisterClass(&hUsbDeviceFS, &usbd_pcanpro) != USBD_OK) {

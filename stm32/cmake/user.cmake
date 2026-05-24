@@ -46,8 +46,16 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/../pcan_common/pcanpro_timestamp.c
     ${CMAKE_SOURCE_DIR}/Core/usb/pcanpro_usbd.c
     ${CMAKE_SOURCE_DIR}/Core/usb/pcan_usb.c
+    ${CMAKE_SOURCE_DIR}/Core/usb/usbd_desc.c
 
 )
+
+# Remove CubeMX generated USB device files to prevent conflicts with PCAN versions
+get_target_property(app_sources ${PROJECT_NAME} SOURCES)
+if(app_sources)
+    list(FILTER app_sources EXCLUDE REGEX "USB_DEVICE/App/usb_device.c|USB_DEVICE/App/usbd_desc.c|USB_DEVICE/App/usbd_custom_hid_if.c")
+    set_target_properties(${PROJECT_NAME} PROPERTIES SOURCES "${app_sources}")
+endif()
 
 # Validates that CMAKE_OBJCOPY is set, otherwise tries to find it
 if(NOT CMAKE_OBJCOPY)
