@@ -1,5 +1,7 @@
 #pragma once
+#if !defined(ESP_PLATFORM)
 #include "main.h"
+#endif
 
 // Define your hardware variant here
 // Options: DEVEBOX_H743, NUCLEO_H743, CUSTOM_H743, EMPTY_STUB

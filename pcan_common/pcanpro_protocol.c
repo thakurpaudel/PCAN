@@ -163,45 +163,101 @@ static struct t_m2h_fsm resp_fsm[2] = {
     }};
 
 /* low level requests */
+#if defined(ESP_PLATFORM)
+bool pcan_protocol_device_setup(tusb_control_request_t const * req) {
+#else
 uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
                                    USBD_SetupReqTypedef *req) {
+#endif
   switch (req->bRequest) {
   case USB_VENDOR_REQUEST_INFO:
+#if defined(ESP_PLATFORM)
+    printf("PCAN: Info Req 0x%04X\n", req->wValue);
+#else
     printf("PCAN: Info Req 0x%04X\r\n", req->wValue);
+#endif
     switch (req->wValue) {
     case USB_VENDOR_REQUEST_wVALUE_INFO_BOOTLOADER:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&bi_info, sizeof(bi_info));
+#else
       return USBD_CtlSendData(pdev, (void *)&bi_info, sizeof(bi_info));
+#endif
     case USB_VENDOR_REQUEST_wVALUE_INFO_FIRMWARE:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&fw_info, sizeof(fw_info));
+#else
       return USBD_CtlSendData(pdev, (void *)&fw_info, sizeof(fw_info));
+#endif
     case USB_VENDOR_REQUEST_wVALUE_INFO_uC_CHIPID:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&uc_chid_info, sizeof(uc_chid_info));
+#else
       return USBD_CtlSendData(pdev, (void *)&uc_chid_info, sizeof(uc_chid_info));
+#endif
     case USB_VENDOR_REQUEST_wVALUE_INFO_USB_CHIPID:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&usb_chid_info, sizeof(usb_chid_info));
+#else
       return USBD_CtlSendData(pdev, (void *)&usb_chid_info, sizeof(usb_chid_info));
+#endif
     case USB_VENDOR_REQUEST_wVALUE_INFO_DEVICENR:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&dev_nr_info, sizeof(dev_nr_info));
+#else
       return USBD_CtlSendData(pdev, (void *)&dev_nr_info, sizeof(dev_nr_info));
+#endif
     case USB_VENDOR_REQUEST_wVALUE_INFO_CPLD:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&cpld_info, sizeof(cpld_info));
+#else
       return USBD_CtlSendData(pdev, (void *)&cpld_info, sizeof(cpld_info));
+#endif
     case USB_VENDOR_REQUEST_wVALUE_INFO_MODE:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&info_mode_data, sizeof(info_mode_data));
+#else
       return USBD_CtlSendData(pdev, (void *)&info_mode_data, sizeof(info_mode_data));
+#endif
     case USB_VENDOR_REQUEST_wVALUE_INFO_TIMEMODE:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, (void *)&time_mode_info, sizeof(time_mode_info));
+#else
       return USBD_CtlSendData(pdev, (void *)&time_mode_info, sizeof(time_mode_info));
+#endif
     default:
+#if defined(ESP_PLATFORM)
+      return false;
+#else
       return USBD_FAIL;
+#endif
     }
     break;
 
   case USB_VENDOR_REQUEST_FKT:
     switch (req->wValue) {
     case USB_VENDOR_REQUEST_wVALUE_SETFKT_INTERFACE_DRIVER_LOADED:
+#if defined(ESP_PLATFORM)
+      return tud_control_xfer(0, req, drv_load_packet, req->wLength);
+#else
       USBD_CtlPrepareRx(pdev, drv_load_packet, 16);
       return USBD_OK;
+#endif
     default:
+#if defined(ESP_PLATFORM)
+      return tud_control_status(0, req);
+#else
       return USBD_OK; // Silently accept other vendor functions
+#endif
     }
     break;
   default:
+#if defined(ESP_PLATFORM)
+    return false;
+#else
     USBD_CtlError(pdev, req);
     return USBD_FAIL;
+#endif
   }
 }
 
@@ -497,13 +553,24 @@ void pcan_protocol_init(void) {
   pcan_can_install_tx_callback(CAN_BUS_2, pcan_protocol_tx_frame_cb);
 }
 
+#if defined(ESP_PLATFORM)
+bool pcan_usb_transmit(uint8_t ep, uint8_t *buf, uint16_t size);
+#endif
+
 void pcan_protocol_poll(void) {
   pcan_can_poll();
   for (int i = 0; i < 2; i++) {
     if (resp[i].rec_buffer_len > 4) {
+#if defined(ESP_PLATFORM)
+      uint8_t ep = (i == 0) ? 0x81 : 0x82; // EP_CMDIN or EP_MSGIN_CH1
+      if (pcan_usb_transmit(ep, resp[i].u.rec_buffer, resp[i].rec_buffer_len)) {
+        pcan_usbpro_msg_reset(&resp[i]);
+      }
+#else
       if (pcan_flush_data(&resp_fsm[i], resp[i].u.rec_buffer, resp[i].rec_buffer_len)) {
         pcan_usbpro_msg_reset(&resp[i]);
       }
+#endif
     }
   }
 }

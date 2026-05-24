@@ -1,8 +1,5 @@
 #include "tusb.h"
 
-#define USB_PID           0x0011 // PCAN-USB Pro FD
-#define USB_VID           0x0C72 // PEAK-System Technik GmbH
-
 //--------------------------------------------------------------------+
 // Device Descriptors
 //--------------------------------------------------------------------+
@@ -18,8 +15,8 @@ tusb_desc_device_t const desc_device =
     .bDeviceProtocol    = 0x00,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
 
-    .idVendor           = USB_VID,
-    .idProduct          = USB_PID,
+    .idVendor           = CONFIG_PCAN_USB_VID,
+    .idProduct          = CONFIG_PCAN_USB_PID,
     .bcdDevice          = 0x0200,
 
     .iManufacturer      = 0x01,
@@ -83,9 +80,9 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
 char const* string_desc_arr [] =
 {
   (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
-  "PEAK-System Technik GmbH",    // 1: Manufacturer
-  "PCAN-USB Pro FD",             // 2: Product
-  "12345678",                    // 3: Serials
+  CONFIG_PCAN_MANUFACTURER,      // 1: Manufacturer
+  CONFIG_PCAN_DEVICE_NAME,       // 2: Product
+  CONFIG_PCAN_SERIAL_NUMBER,     // 3: Serials
   "PCAN-USB Pro FD Interface"    // 4: Interface string
 };
 

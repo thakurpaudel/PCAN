@@ -1,0 +1,45 @@
+menu "PCAN Firmware Configuration"
+
+    config PCAN_TX_PIN
+        int "CAN TX GPIO Pin"
+        default 1
+        help
+            GPIO pin number for CAN TX (TWAI).
+
+    config PCAN_RX_PIN
+        int "CAN RX GPIO Pin"
+        default 2
+        help
+            GPIO pin number for CAN RX (TWAI).
+
+    config PCAN_MANUFACTURER
+        string "USB Manufacturer String"
+        default "PEAK-System Technik GmbH"
+        help
+            The manufacturer string descriptor for the USB device.
+
+    config PCAN_DEVICE_NAME
+        string "USB Device Name (Product String)"
+        default "PCAN-USB Pro FD"
+        help
+            The product string descriptor for the USB device.
+
+    config PCAN_SERIAL_NUMBER
+        string "USB Serial Number"
+        default "12345678"
+        help
+            The serial number string descriptor for the USB device.
+
+    config PCAN_USB_VID
+        hex "USB Vendor ID (VID)"
+        default 0x0C72
+        help
+            The Vendor ID (VID) for the USB device. Default is 0x0C72 (PEAK-System).
+
+    config PCAN_USB_PID
+        hex "USB Product ID (PID)"
+        default 0x0011
+        help
+            The Product ID (PID) for the USB device. Default is 0x0011 (PCAN-USB Pro FD).
+
+endmenu

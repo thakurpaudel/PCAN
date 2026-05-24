@@ -7,8 +7,8 @@
 #include <stdio.h>
 
 // ESP32-S3 TWAI Pins (Configurable, using defaults here)
-#define TX_GPIO_NUM 1
-#define RX_GPIO_NUM 2
+#define TX_GPIO_NUM CONFIG_PCAN_TX_PIN
+#define RX_GPIO_NUM CONFIG_PCAN_RX_PIN
 
 #define CAN_TX_FIFO_SIZE (256)
 

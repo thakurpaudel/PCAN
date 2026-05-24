@@ -1,10 +1,18 @@
+#include "pcanpro_led.h"
+
+#if defined(ESP_PLATFORM)
+
+void pcan_led_init(void) {}
+void pcan_led_set_mode(int led, int mode, uint32_t arg) {}
+void pcan_led_poll(void) {}
+
+#else
+
 #include "gpio.h"
 #include "main.h"
-#include "pcanpro_led.h"
 #include "pcanpro_timestamp.h"
 #include "pcanpro_variant.h"
 #include <assert.h>
-
 static struct {
   uint32_t arg;
   uint32_t delay;
@@ -107,3 +115,4 @@ void pcan_led_poll(void) {
     _led_update_state(i, led_mode_array[i].state);
   }
 }
+#endif

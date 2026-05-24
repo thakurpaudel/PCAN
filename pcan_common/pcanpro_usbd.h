@@ -1,6 +1,8 @@
 
 #pragma once
+#if !defined(ESP_PLATFORM)
 #include "usbd_def.h"
+#endif
 #include <stdint.h>
 
 /* USB Packet Sizes */
@@ -71,7 +73,9 @@ struct t_class_data {
 };
 
 /* USB Class definition */
+#if !defined(ESP_PLATFORM)
 extern USBD_ClassTypeDef usbd_pcanpro;
+#endif
 #define STRINGIFY(x) #x
 /* Configuration summary for debugging */
 #if defined(DEBUG) && DEBUG == 1
