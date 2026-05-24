@@ -25,7 +25,8 @@ target_link_options(${PROJECT_NAME} PRIVATE
 # ============================
 target_include_directories(${PROJECT_NAME} PRIVATE
     # ${CMAKE_SOURCE_DIR}/user/Middlewares/ST/STM32_USB_Device_Library/Core/Inc
-    ${CMAKE_SOURCE_DIR}/Core/pcan
+    ${CMAKE_SOURCE_DIR}/Core/can
+    ${CMAKE_SOURCE_DIR}/Core/usb
     ${CMAKE_SOURCE_DIR}/../pcan_common
 )
 
@@ -39,12 +40,12 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 
     # PCAN sources
-    ${CMAKE_SOURCE_DIR}/Core/pcan/pcanpro_can.c
+    ${CMAKE_SOURCE_DIR}/Core/can/pcanpro_can.c
     ${CMAKE_SOURCE_DIR}/../pcan_common/pcanpro_led.c
     ${CMAKE_SOURCE_DIR}/../pcan_common/pcanpro_fd_protocol.c
     ${CMAKE_SOURCE_DIR}/../pcan_common/pcanpro_timestamp.c
-    ${CMAKE_SOURCE_DIR}/Core/pcan/pcanpro_usbd.c
-    ${CMAKE_SOURCE_DIR}/Core/pcan/pcan_usb.c
+    ${CMAKE_SOURCE_DIR}/Core/usb/pcanpro_usbd.c
+    ${CMAKE_SOURCE_DIR}/Core/usb/pcan_usb.c
 
 )
 
