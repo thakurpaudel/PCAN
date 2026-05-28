@@ -1,6 +1,7 @@
 #include "usbd_desc.h"
 #include "usbd_conf.h"
 #include "usbd_core.h"
+#include "pcanpro_usbd.h"
 
 /* USB VID/PID Configuration */
 #define USBD_VID 0x0C72 /* PEAK-System Technik GmbH */
@@ -62,8 +63,8 @@ __ALIGN_BEGIN uint8_t USBD_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END = {
     HIBYTE(USBD_VID),    /*idVendor*/
     LOBYTE(USBD_PID_HS), /*idProduct*/
     HIBYTE(USBD_PID_HS), /*idProduct*/
-    0x00,                /*bcdDevice rel. 0.00*/
-    0x00,
+    LOBYTE(PCAN_USB_BCD_DEVICE), /*bcdDevice*/
+    HIBYTE(PCAN_USB_BCD_DEVICE),
     USBD_IDX_MFC_STR,          /*Index of manufacturer  string*/
     USBD_IDX_PRODUCT_STR,      /*Index of product string*/
     0 /*USBD_IDX_SERIAL_STR*/, /*Index of serial number string*/

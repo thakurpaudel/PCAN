@@ -23,7 +23,7 @@ tusb_desc_device_t const desc_device =
 
     .idVendor           = CONFIG_PCAN_USB_VID,
     .idProduct          = CONFIG_PCAN_USB_PID,
-    .bcdDevice          = 0x0000,
+    .bcdDevice          = PCAN_USB_BCD_DEVICE,
 
     .iManufacturer      = 0x01,
     .iProduct           = 0x02,

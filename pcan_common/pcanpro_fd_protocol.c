@@ -147,7 +147,9 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
                          0}, /* bootloader v > 2 support massstorage mode */
           .hw_version = 2,
 #endif
-          .fw_version = {3, 2, 0},
+          .fw_version = {PCAN_FIRMWARE_VERSION_MAJOR,
+                         PCAN_FIRMWARE_VERSION_MINOR,
+                         PCAN_FIRMWARE_VERSION_PATCH},
           .dev_id[0] = 0xFFFFFFFF,
 #if defined(ESP_PLATFORM)
           .dev_id[1] = 0,             /* single channel on ESP32-S3 */
