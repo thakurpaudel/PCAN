@@ -27,7 +27,7 @@ tusb_desc_device_t const desc_device =
 
     .iManufacturer      = 0x01,
     .iProduct           = 0x02,
-    .iSerialNumber      = 0x00,
+    .iSerialNumber      = 0x03, // Expose serial number to host
 
     .bNumConfigurations = 0x01
 };
@@ -90,7 +90,7 @@ char const* string_desc_arr [] =
   (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
   CONFIG_PCAN_MANUFACTURER,      // 1: Manufacturer
   CONFIG_PCAN_DEVICE_NAME,       // 2: Product
-  CONFIG_PCAN_SERIAL_NUMBER,     // 3: Serial, currently not referenced
+  CONFIG_PCAN_SERIAL_NUMBER,     // 3: Serial
   "Config00",                    // 4: Configuration
   "PCAN-USB FD CAN"              // 5: Interface string
 };
@@ -112,6 +112,10 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
     if ( !(index < sizeof(string_desc_arr)/sizeof(string_desc_arr[0])) ) return NULL;
 
     const char* str = string_desc_arr[index];
+    if (index == 3 && (str == NULL || str[0] == '\0'))
+    {
+      str = "20540529"; // Fallback to user's working serial number if empty
+    }
 
     chr_count = strlen(str);
     if ( chr_count > 31 ) chr_count = 31;
@@ -124,4 +128,25 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 
   _desc_str[0] = (TUSB_DESC_STRING << 8 ) | (2*chr_count + 2);
   return _desc_str;
+}
+
+//--------------------------------------------------------------------+
+// Device Qualifier Descriptor
+//--------------------------------------------------------------------+
+tusb_desc_device_qualifier_t const desc_device_qualifier =
+{
+    .bLength            = sizeof(tusb_desc_device_qualifier_t),
+    .bDescriptorType    = TUSB_DESC_DEVICE_QUALIFIER,
+    .bcdUSB             = 0x0200,
+    .bDeviceClass       = 0x00,
+    .bDeviceSubClass    = 0x00,
+    .bDeviceProtocol    = 0x00,
+    .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
+    .bNumConfigurations = 0x01,
+    .bReserved          = 0x00
+};
+
+uint8_t const* tud_descriptor_device_qualifier_cb(void)
+{
+  return (uint8_t const*) &desc_device_qualifier;
 }

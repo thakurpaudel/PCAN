@@ -80,6 +80,7 @@ static struct {
 #define PCAN_USB_DATA_BUFFER_SIZE 2048
 #define PCAN_USB_MAX_PACKET_SIZE 64
 #define PCAN_USB_FLUSH_TRAILER_SIZE 8
+#define PCAN_USB_DATA_FLUSH_LIMIT PCAN_USB_DATA_BUFFER_SIZE
 #if !defined(ESP_PLATFORM)
 static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE];
 #endif
@@ -91,6 +92,14 @@ static uint8_t data_buffer[PCAN_USB_DATA_BUFFER_SIZE];
 /* diagnostic counters */
 static volatile uint32_t g_rx_frame_cnt = 0;
 static volatile uint32_t g_tx_ok_cnt = 0;
+
+int pcan_protocol_can_rx_ready(void) {
+  const uint16_t worst_rx_msg_size =
+      (sizeof(struct ucan_rx_msg) + CAN_PAYLOAD_MAX_SIZE + 3u) & ~3u;
+
+  return (PCAN_USB_DATA_FLUSH_LIMIT >=
+          (data_pos + worst_rx_msg_size + PCAN_USB_FLUSH_TRAILER_SIZE));
+}
 
 void *pcan_data_alloc_buffer(uint16_t type, uint16_t size) {
   uint16_t aligned_size = (size + (4 - 1)) & (~(4 - 1));
@@ -161,7 +170,11 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
           .unk = {0x01, /* cmd_out */
                   0x81, /* cmd_in */
                   0x02, /* write */
+#if CAN_CHANNEL_MAX > 1
                   0x03, /* write */
+#else
+                  0x00,
+#endif
                   0x82, /* read */
                   0x00, 0x00, 0x00}};
       /* windows/linux has different struct size */
@@ -628,47 +641,46 @@ void pcan_protocol_init(void) {
 #endif
 }
 
+static void pcan_protocol_flush_rx_buffer(uint32_t ts_us) {
+  if (data_pos == 0)
+    return;
+
+  *(uint32_t *)&data_buffer[data_pos] = 0x00000000;
+  uint16_t flush_size = data_pos + 4;
+
+  if (flush_size % PCAN_USB_MAX_PACKET_SIZE == 0) {
+    *(uint32_t *)&data_buffer[flush_size] = 0x00000000;
+    flush_size += 4;
+  }
+
+  if (flush_size > PCAN_USB_DATA_FLUSH_LIMIT)
+    return;
+
+#if defined(ESP_PLATFORM)
+  extern bool pcan_usb_transmit(uint8_t ep, uint8_t *buf, uint16_t size);
+  int res = pcan_usb_transmit(PCAN_USB_EP_MSGIN_CH1, data_buffer, flush_size);
+  if (res) {
+    g_tx_ok_cnt++;
+    data_pos = 0;
+    pcan_device.last_time_flush = ts_us;
+  }
+#else
+  int res = pcan_flush_data(&resp_fsm[1], data_buffer, flush_size);
+  if (res) {
+    data_pos = 0;
+    pcan_device.last_time_flush = ts_us;
+  }
+#endif
+}
+
 void pcan_protocol_poll(void) {
   uint32_t ts_ms = pcan_timestamp_millis();
   uint32_t ts_us = pcan_timestamp_us();
 
-  pcan_can_poll();
-
-  /* 1-second diagnostic: show RX/TX health */
-  {
-    static uint32_t last_diag_ms = 0;
-    if (ts_ms - last_diag_ms >= 1000u) {
-      last_diag_ms = ts_ms;
-      // Heartbeat counters can be maintained without UART overhead
-    }
-  }
-
-  /* flush data */
-  if (data_pos > 0) {
-    /* endmark */
-    *(uint32_t *)&data_buffer[data_pos] = 0x00000000;
-    uint16_t flush_size = data_pos + 4;
-    /* Ensure flush_size is NEVER a multiple of 64 to force a short packet and complete the URB immediately */
-    if (flush_size % PCAN_USB_MAX_PACKET_SIZE == 0) {
-        *(uint32_t *)&data_buffer[flush_size] = 0x00000000;
-        flush_size += 4;
-    }
-#if defined(ESP_PLATFORM)
-    extern bool pcan_usb_transmit(uint8_t ep, uint8_t *buf, uint16_t size);
-    int res = pcan_usb_transmit(PCAN_USB_EP_MSGIN_CH1, data_buffer, flush_size);
-    if (res) {
-      g_tx_ok_cnt++;
-      data_pos = 0;
-      pcan_device.last_time_flush = ts_us;
-    }
-#else
-    int res = pcan_flush_data(&resp_fsm[1], data_buffer, flush_size);
-    if (res) {
-      data_pos = 0;
-      pcan_device.last_time_flush = ts_us;
-    }
-#endif
-  }
+  pcan_protocol_flush_rx_buffer(ts_us);
+  if (pcan_protocol_can_rx_ready())
+    pcan_can_poll();
+  pcan_protocol_flush_rx_buffer(ts_us);
 
   /* timesync part */
   if (!pcan_device.can_drv_loaded)

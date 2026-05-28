@@ -39,6 +39,7 @@ static twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
 static twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 static twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(TX_GPIO_NUM, RX_GPIO_NUM, TWAI_MODE_NORMAL);
 
+extern int pcan_protocol_can_rx_ready(void);
 
 uint32_t pcan_can_msg_time(const struct t_can_msg *pmsg, uint32_t nt, uint32_t dt) {
     const uint32_t data_bits = pmsg->size << 3;
@@ -280,7 +281,8 @@ void pcan_can_poll(void) {
         }
 
         twai_message_t t_msg;
-        while (twai_receive(&t_msg, 0) == ESP_OK) {
+        while (pcan_protocol_can_rx_ready() &&
+               twai_receive(&t_msg, 0) == ESP_OK) {
             struct t_can_msg p_msg = {0};
             p_msg.id = t_msg.identifier;
             p_msg.flags = 0;

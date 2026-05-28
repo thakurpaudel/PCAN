@@ -23,8 +23,13 @@
 #define PCAN_USB_ENDPOINT_COUNT 4
 #endif
 
-// Buffer for OUT endpoints
-static uint8_t ep_out_buf[4][64];
+// Buffer for OUT endpoints. Full-speed USB packets are 64 bytes, but a PEAK
+// transfer can span multiple USB packets.
+static uint8_t ep_cmd_out_buf[PCAN_CMD_PACKET_SIZE] __attribute__((aligned(4)));
+static uint8_t ep_msg1_out_buf[512] __attribute__((aligned(4)));
+#if PCAN_NUM_CHANNELS > 1
+static uint8_t ep_msg2_out_buf[512] __attribute__((aligned(4)));
+#endif
 
 // Buffer for IN endpoints (transmit) to prevent corruption while DMA is active
 static uint8_t ep_in_buf[4][2048] __attribute__((aligned(4)));
@@ -77,10 +82,10 @@ static uint16_t pcan_open(uint8_t rhport, tusb_desc_interface_t const *itf_desc,
     }
 
     // Prepare RX for OUT endpoints
-    usbd_edpt_xfer(rhport, EP_CMD_OUT, ep_out_buf[1], 64);
-    usbd_edpt_xfer(rhport, EP_MSG1_OUT, ep_out_buf[2], 64);
+    usbd_edpt_xfer(rhport, EP_CMD_OUT, ep_cmd_out_buf, sizeof(ep_cmd_out_buf));
+    usbd_edpt_xfer(rhport, EP_MSG1_OUT, ep_msg1_out_buf, sizeof(ep_msg1_out_buf));
 #if PCAN_NUM_CHANNELS > 1
-    usbd_edpt_xfer(rhport, EP_MSG2_OUT, ep_out_buf[3], 64);
+    usbd_edpt_xfer(rhport, EP_MSG2_OUT, ep_msg2_out_buf, sizeof(ep_msg2_out_buf));
 #endif
 
     return drv_len;
@@ -114,13 +119,23 @@ static bool pcan_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t result, 
     if (result != XFER_RESULT_SUCCESS)
         return false;
 
-    if (ep_addr == EP_CMD_OUT || ep_addr == EP_MSG1_OUT || ep_addr == EP_MSG2_OUT)
+    if (ep_addr == EP_CMD_OUT)
     {
-        uint8_t idx = ep_addr & 0x0F;
-        pcan_protocol_process_data(ep_addr, ep_out_buf[idx], xferred_bytes);
-        // Queue next receive
-        usbd_edpt_xfer(rhport, ep_addr, ep_out_buf[idx], 64);
+        pcan_protocol_process_data(ep_addr, ep_cmd_out_buf, xferred_bytes);
+        usbd_edpt_xfer(rhport, ep_addr, ep_cmd_out_buf, sizeof(ep_cmd_out_buf));
     }
+    else if (ep_addr == EP_MSG1_OUT)
+    {
+        pcan_protocol_process_data(ep_addr, ep_msg1_out_buf, xferred_bytes);
+        usbd_edpt_xfer(rhport, ep_addr, ep_msg1_out_buf, sizeof(ep_msg1_out_buf));
+    }
+#if PCAN_NUM_CHANNELS > 1
+    else if (ep_addr == EP_MSG2_OUT)
+    {
+        pcan_protocol_process_data(ep_addr, ep_msg2_out_buf, xferred_bytes);
+        usbd_edpt_xfer(rhport, ep_addr, ep_msg2_out_buf, sizeof(ep_msg2_out_buf));
+    }
+#endif
     return true;
 }
 

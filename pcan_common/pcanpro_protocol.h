@@ -18,6 +18,7 @@ void pcan_protocol_init( void );
 void pcan_protocol_poll( void );
 void pcan_protocol_process_data( uint8_t ep, uint8_t *ptr, uint16_t size );
 void pcan_ep0_receive( void );
+int pcan_protocol_can_rx_ready(void);
 
 #if defined(ESP_PLATFORM)
 bool pcan_protocol_device_setup(tusb_control_request_t const * req);

@@ -162,6 +162,10 @@ static struct t_m2h_fsm resp_fsm[2] = {
         .dbsize = PCAN_USB_DATA_BUFFER_SIZE,
     }};
 
+int pcan_protocol_can_rx_ready(void) {
+  return 1;
+}
+
 /* low level requests */
 #if defined(ESP_PLATFORM)
 bool pcan_protocol_device_setup(tusb_control_request_t const * req) {
