@@ -3,14 +3,18 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_timer.h"
 #include <string.h>
 #include <stdio.h>
 
-// ESP32-S3 TWAI Pins (Configurable, using defaults here)
+/* ESP32-S3 has only one TWAI peripheral — override CAN_BUS_TOTAL */
+#ifndef CAN_BUS_TOTAL
+#define CAN_BUS_TOTAL 1
+#endif
 #define TX_GPIO_NUM CONFIG_PCAN_TX_PIN
 #define RX_GPIO_NUM CONFIG_PCAN_RX_PIN
 
-#define CAN_TX_FIFO_SIZE (256)
+#define CAN_TX_FIFO_SIZE (512)
 
 static struct t_can_dev {
   uint32_t tx_msgs;
@@ -69,25 +73,25 @@ static twai_timing_config_t get_twai_timing(uint32_t bitrate) {
 int pcan_can_init_ex(int bus, uint32_t bitrate) {
     if (bus != CAN_BUS_1) return 0; // ESP32-S3 only has one TWAI
     
+    static uint32_t current_bitrate = 0;
+    if (can_dev_array[bus].is_installed && current_bitrate == bitrate) {
+        printf("TWAI CAN already initialized at %lu bps\n", (unsigned long)bitrate);
+        return 0;
+    }
+    
     if (can_dev_array[bus].is_installed) {
         twai_stop();
         twai_driver_uninstall();
         can_dev_array[bus].is_installed = false;
     }
 
+    current_bitrate = bitrate;
     t_config = get_twai_timing(bitrate);
-    g_config.tx_queue_len = 32;
-    g_config.rx_queue_len = 64;
+    g_config.tx_queue_len = 256;
+    g_config.rx_queue_len = 1024;
 
-    if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
-        if (twai_start() == ESP_OK) {
-            can_dev_array[bus].is_installed = true;
-            printf("TWAI CAN initialized at %lu bps\n", (unsigned long)bitrate);
-            return 0;
-        }
-    }
-    printf("TWAI CAN initialization failed\n");
-    return -1;
+    printf("TWAI CAN configured for %lu bps (deferred install)\n", (unsigned long)bitrate);
+    return 0;
 }
 
 int pcan_can_init(int bus, uint32_t bitrate) {
@@ -102,6 +106,7 @@ int pcan_can_init_fd(int bus, uint32_t nom_bitrate, uint32_t data_bitrate) {
 
 void pcan_can_set_silent(int bus, uint8_t silent_mode) {
     if (bus != CAN_BUS_1) return;
+    printf("Setting SILENT MODE: %d\n", silent_mode);
     g_config.mode = silent_mode ? TWAI_MODE_LISTEN_ONLY : TWAI_MODE_NORMAL;
     // Need to re-init for mode change
     if (can_dev_array[bus].is_installed) {
@@ -114,7 +119,38 @@ void pcan_can_set_silent(int bus, uint8_t silent_mode) {
 
 void pcan_can_set_iso_mode(int bus, uint8_t iso_mode) { /* Not supported */ }
 void pcan_can_set_loopback(int bus, uint8_t loopback) { /* Not supported without re-init */ }
-void pcan_can_set_bus_active(int bus, uint16_t mode) { /* handled via init */ }
+void pcan_can_set_bus_active(int bus, uint16_t mode) {
+    if (bus != CAN_BUS_1) return;
+    struct t_can_dev *p_dev = &can_dev_array[bus];
+
+    if (mode == 0) {
+        // RESET_MODE: Stop and uninstall TWAI to stop ACKing frames.
+        // This pauses the OBD tool's boot sequence.
+        if (p_dev->is_installed) {
+            twai_stop();
+            twai_driver_uninstall();
+            p_dev->is_installed = false;
+            printf("TWAI stopped and uninstalled (RESET_MODE)\n");
+        }
+    } else {
+        // NORMAL_MODE: Install and start the TWAI driver.
+        if (!p_dev->is_installed) {
+            printf("TWAI Install config: brp=%lu, tseg1=%d, tseg2=%d, sjw=%d\n", (unsigned long)t_config.brp, t_config.tseg_1, t_config.tseg_2, t_config.sjw);
+            if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
+                if (twai_start() == ESP_OK) {
+                    p_dev->is_installed = true;
+                    printf("TWAI installed and started (NORMAL_MODE)\n");
+                } else {
+                    printf("TWAI start FAILED!\n");
+                }
+            } else {
+                printf("TWAI install FAILED!\n");
+            }
+        } else {
+            printf("TWAI already active (NORMAL_MODE)\n");
+        }
+    }
+}
 
 void pcan_can_set_bitrate(int bus, uint32_t bitrate, int is_data_bitrate) {
     if (is_data_bitrate) return; // Ignore data bitrate
@@ -122,21 +158,13 @@ void pcan_can_set_bitrate(int bus, uint32_t bitrate, int is_data_bitrate) {
 }
 
 void pcan_can_set_bitrate_ex(int bus, uint16_t brp, uint8_t tseg1, uint8_t tseg2, uint8_t sjw) {
-    if (bus != CAN_BUS_1) return;
-    t_config.brp = brp;
-    t_config.tseg_1 = tseg1;
-    t_config.tseg_2 = tseg2;
-    t_config.sjw = sjw;
-    // Re-init
-    if (can_dev_array[bus].is_installed) {
-        twai_stop();
-        twai_driver_uninstall();
-        twai_driver_install(&g_config, &t_config, &f_config);
-        twai_start();
-    }
+    // Ignore raw CAN-FD timing parameters from the host PC.
+    // SJA1000 controller (ESP32 TWAI) cannot support them.
+    // Instead, we rely entirely on standard mapping in pcan_can_init_ex().
+    printf("Ignoring direct BTR overwrite from PC: brp=%d, tseg1=%d, tseg2=%d\n", brp, tseg1, tseg2);
 }
 
-void pcan_can_set_bitrate_raw(int bus, int bit_rate,int is_data) {
+void pcan_can_set_bitrate_raw(int bus, int bit_rate, int is_data) {
     pcan_can_set_bitrate(bus, bit_rate, is_data);
 }
 
@@ -144,10 +172,27 @@ int pcan_can_write(int bus, struct t_can_msg *p_msg) {
     if (bus != CAN_BUS_1 || !p_msg) return 0;
     
     struct t_can_dev *p_dev = &can_dev_array[bus];
+
+    if (p_msg->size > 8) {
+        p_dev->tx_errs++;
+        return -1;
+    }
+
+    if (p_msg->flags & MSG_FLAG_EXT) {
+        if (p_msg->id > 0x1FFFFFFF) {
+            p_dev->tx_errs++;
+            return -1;
+        }
+    } else if (p_msg->id > 0x7FF) {
+        p_dev->tx_errs++;
+        return -1;
+    }
+
     uint32_t tx_head_next = (p_dev->tx_head + 1) & (CAN_TX_FIFO_SIZE - 1);
     
     if (tx_head_next == p_dev->tx_tail) {
         p_dev->tx_ovfs++;
+        p_dev->tx_errs++;
         return -1;
     }
     
@@ -195,7 +240,9 @@ static void pcan_can_flush_tx(int bus) {
         
         t_msg.rtr = (p_msg->flags & MSG_FLAG_RTR) ? 1 : 0;
         t_msg.data_length_code = p_msg->size > 8 ? 8 : p_msg->size;
-        memcpy(t_msg.data, p_msg->data, t_msg.data_length_code);
+        if (!t_msg.rtr) {
+            memcpy(t_msg.data, p_msg->data, t_msg.data_length_code);
+        }
 
         if (twai_transmit(&t_msg, 0) == ESP_OK) {
             if (p_dev->tx_isr) {
@@ -205,35 +252,51 @@ static void pcan_can_flush_tx(int bus) {
             p_dev->tx_tail = (p_dev->tx_tail + 1) & (CAN_TX_FIFO_SIZE - 1);
         } else {
             // TX queue full or error, wait for next poll
+            p_dev->tx_errs++;
             break;
         }
     }
 }
 
 void pcan_can_poll(void) {
+    static uint32_t poll_count = 0;
+    poll_count++;
     for (int bus = 0; bus < CAN_BUS_TOTAL; bus++) {
-        if (!can_dev_array[bus].is_installed) continue;
+        if (!can_dev_array[bus].is_installed) {
+            if ((poll_count & 0xFFFFu) == 1)
+                printf("TWAI bus%d NOT installed (poll#%lu)\n", bus, (unsigned long)poll_count);
+            continue;
+        }
         
-        // 1. Process RX
+        if ((poll_count & 0xFFFu) == 0) {
+            twai_status_info_t status;
+            static uint32_t last_tx_failed[CAN_BUS_TOTAL];
+            static uint32_t last_rx_missed[CAN_BUS_TOTAL];
+            twai_get_status_info(&status);
+            can_dev_array[bus].tx_errs += status.tx_failed_count - last_tx_failed[bus];
+            can_dev_array[bus].rx_ovfs += status.rx_missed_count - last_rx_missed[bus];
+            last_tx_failed[bus] = status.tx_failed_count;
+            last_rx_missed[bus] = status.rx_missed_count;
+        }
+
         twai_message_t t_msg;
         while (twai_receive(&t_msg, 0) == ESP_OK) {
             struct t_can_msg p_msg = {0};
             p_msg.id = t_msg.identifier;
             p_msg.flags = 0;
             if (t_msg.extd) p_msg.flags |= MSG_FLAG_EXT;
-            if (t_msg.rtr) p_msg.flags |= MSG_FLAG_RTR;
+            if (t_msg.rtr)  p_msg.flags |= MSG_FLAG_RTR;
             p_msg.size = t_msg.data_length_code;
-            p_msg.timestamp = (uint32_t)(xTaskGetTickCount() * 1000 / configTICK_RATE_HZ); // Approx us (1ms ticks)
-            
-            if (!t_msg.rtr) {
+            p_msg.timestamp = (uint32_t)esp_timer_get_time();
+
+            if (!t_msg.rtr)
                 memcpy(p_msg.data, t_msg.data, t_msg.data_length_code);
-            }
 
             can_dev_array[bus].rx_msgs++;
-            
-            if (can_dev_array[bus].rx_isr) {
-                can_dev_array[bus].rx_isr(bus, &p_msg);
-            }
+
+            if (can_dev_array[bus].rx_isr && can_dev_array[bus].rx_isr(bus, &p_msg) < 0)
+                can_dev_array[bus].rx_ovfs++;
+
         }
         
         // 2. Process TX

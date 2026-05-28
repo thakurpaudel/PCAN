@@ -463,6 +463,13 @@ int pcan_protocol_set_baudrate(uint8_t channel, uint32_t ccbt) {
 
 int pcan_protocol_rx_frame(uint8_t channel, struct t_can_msg *pmsg) {
   uint8_t rec_type, client = 0, flags = 0;
+
+#if defined(ESP_PLATFORM)
+  printf("PCAN: CAN RX ID=0x%08lX Len=%d\n", (unsigned long)pmsg->id, pmsg->size);
+#else
+  printf("PCAN: CAN RX ID=0x%08lX Len=%d\r\n", (unsigned long)pmsg->id, pmsg->size);
+#endif
+
   if (!pcan_device.can[channel].led_is_busy && !(pmsg->flags & MSG_FLAG_ECHO)) {
     pcan_led_set_mode(channel ? LED_CH1_RX : LED_CH0_RX, LED_MODE_BLINK_FAST, 237);
   }
@@ -507,6 +514,17 @@ int pcan_protocol_tx_frame(struct pcan_usbpro_canmsg_tx *pmsg) {
 
 void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
   struct pcan_usbpro_msg m = {0};
+
+#if defined(ESP_PLATFORM)
+  printf("PCAN: Rx EP%02X Size %d | Raw: ", ep, size);
+  for (int i = 0; i < size && i < 16; i++) printf("%02X ", ptr[i]);
+  printf("\n");
+#else
+  printf("PCAN: Rx EP%02X Size %d | Raw: ", ep, size);
+  for (int i = 0; i < size && i < 16; i++) printf("%02X ", ptr[i]);
+  printf("\r\n");
+#endif
+
   uint8_t *rec_ptr = pcan_usbpro_msg_init(&m, ptr, size);
   if (!rec_ptr || size < 4) return;
 
@@ -523,6 +541,11 @@ void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_8:
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_4:
     case DATA_TYPE_USB2CAN_STRUCT_CANMSG_TX_0:
+#if defined(ESP_PLATFORM)
+      printf("PCAN: CAN TX ID=0x%08lX Len=%d\n", (unsigned long)prec->canmsg_tx.id, prec->canmsg_tx.len & 0x0f);
+#else
+      printf("PCAN: CAN TX ID=0x%08lX Len=%d\r\n", (unsigned long)prec->canmsg_tx.id, prec->canmsg_tx.len & 0x0f);
+#endif
       pcan_protocol_tx_frame(&prec->canmsg_tx);
       break;
     case DATA_TYPE_USB2CAN_STRUCT_FKT_SETBAUDRATE:

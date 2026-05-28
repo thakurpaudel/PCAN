@@ -1,4 +1,11 @@
 #include "tusb.h"
+#include "pcanpro_usbd.h"
+
+#if PCAN_NUM_CHANNELS > 1
+#define PCAN_USB_ENDPOINT_COUNT 6
+#else
+#define PCAN_USB_ENDPOINT_COUNT 4
+#endif
 
 //--------------------------------------------------------------------+
 // Device Descriptors
@@ -9,19 +16,18 @@ tusb_desc_device_t const desc_device =
     .bDescriptorType    = TUSB_DESC_DEVICE,
     .bcdUSB             = 0x0200,
 
-    // Vendor Specific Class
-    .bDeviceClass       = TUSB_CLASS_VENDOR_SPECIFIC,
+    .bDeviceClass       = 0x00,
     .bDeviceSubClass    = 0x00,
     .bDeviceProtocol    = 0x00,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
 
     .idVendor           = CONFIG_PCAN_USB_VID,
     .idProduct          = CONFIG_PCAN_USB_PID,
-    .bcdDevice          = 0x0200,
+    .bcdDevice          = 0x0000,
 
     .iManufacturer      = 0x01,
     .iProduct           = 0x02,
-    .iSerialNumber      = 0x03,
+    .iSerialNumber      = 0x00,
 
     .bNumConfigurations = 0x01
 };
@@ -34,7 +40,7 @@ uint8_t const * tud_descriptor_device_cb(void)
 //--------------------------------------------------------------------+
 // Configuration Descriptor
 //--------------------------------------------------------------------+
-#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_VENDOR_DESC_LEN)
+#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + 9 + PCAN_USB_ENDPOINT_COUNT * 7)
 
 #define EP_CMD_OUT        0x01
 #define EP_CMD_IN         0x81
@@ -47,25 +53,27 @@ uint8_t const * tud_descriptor_device_cb(void)
 uint8_t const desc_configuration[] =
 {
     // Config number, interface count, string index, total length, attribute, power in mA
-    TUD_CONFIG_DESCRIPTOR(1, 1, 0, 9 + 9 + 6*7, 0x80, 100),
+    TUD_CONFIG_DESCRIPTOR(1, 1, 4, CONFIG_TOTAL_LEN, 0x80, 240),
 
     // Interface Descriptor
-    9, TUSB_DESC_INTERFACE, 0, 0, 6, TUSB_CLASS_VENDOR_SPECIFIC, 0x00, 0x00, 0,
+    9, TUSB_DESC_INTERFACE, 0, 0, PCAN_USB_ENDPOINT_COUNT, 0x00, 0x00, 0x00, 5,
 
-    // Endpoint Descriptor CMD OUT
-    7, TUSB_DESC_ENDPOINT, EP_CMD_OUT, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
     // Endpoint Descriptor CMD IN
     7, TUSB_DESC_ENDPOINT, EP_CMD_IN, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
-    
-    // Endpoint Descriptor MSG1 OUT
-    7, TUSB_DESC_ENDPOINT, EP_MSG1_OUT, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
+    // Endpoint Descriptor CMD OUT
+    7, TUSB_DESC_ENDPOINT, EP_CMD_OUT, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
+
     // Endpoint Descriptor MSG1 IN
     7, TUSB_DESC_ENDPOINT, EP_MSG1_IN, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
+    // Endpoint Descriptor MSG1 OUT
+    7, TUSB_DESC_ENDPOINT, EP_MSG1_OUT, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
 
-    // Endpoint Descriptor MSG2 OUT
-    7, TUSB_DESC_ENDPOINT, EP_MSG2_OUT, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
+#if PCAN_NUM_CHANNELS > 1
     // Endpoint Descriptor MSG2 IN
-    7, TUSB_DESC_ENDPOINT, EP_MSG2_IN, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0
+    7, TUSB_DESC_ENDPOINT, EP_MSG2_IN, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0,
+    // Endpoint Descriptor MSG2 OUT
+    7, TUSB_DESC_ENDPOINT, EP_MSG2_OUT, TUSB_XFER_BULK, U16_TO_U8S_LE(64), 0
+#endif
 };
 
 uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
@@ -82,8 +90,9 @@ char const* string_desc_arr [] =
   (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
   CONFIG_PCAN_MANUFACTURER,      // 1: Manufacturer
   CONFIG_PCAN_DEVICE_NAME,       // 2: Product
-  CONFIG_PCAN_SERIAL_NUMBER,     // 3: Serials
-  "PCAN-USB Pro FD Interface"    // 4: Interface string
+  CONFIG_PCAN_SERIAL_NUMBER,     // 3: Serial, currently not referenced
+  "Config00",                    // 4: Configuration
+  "PCAN-USB FD CAN"              // 5: Interface string
 };
 
 static uint16_t _desc_str[32];

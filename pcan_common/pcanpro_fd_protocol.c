@@ -8,13 +8,19 @@
 #include "pcanpro_protocol.h"
 #include "pcanpro_timestamp.h"
 #include "pcanpro_usbd.h"
+#if !defined(ESP_PLATFORM)
 #include "usb_device.h"
+#endif
 #include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
 
+#if defined(ESP_PLATFORM)
+#define CAN_CHANNEL_MAX (1)   /* ESP32-S3 has only one TWAI peripheral */
+#else
 #define CAN_CHANNEL_MAX (2)
+#endif
 
 struct pcan_usbfd_fw_info {
   uint16_t size_of;      /* sizeof this */
@@ -65,21 +71,30 @@ static struct {
   } can[CAN_CHANNEL_MAX];
 } pcan_device = {
     .device_nr = 0xFFFFFFFF,
-
     .can[0] = {.channel_nr = 0xFFFFFFF1, .can_clock = 120000000u},
+#if CAN_CHANNEL_MAX > 1
     .can[1] = {.channel_nr = 0xFFFFFFF0, .can_clock = 120000000u},
+#endif
 };
 
 #define PCAN_USB_DATA_BUFFER_SIZE 2048
+#define PCAN_USB_MAX_PACKET_SIZE 64
+#define PCAN_USB_FLUSH_TRAILER_SIZE 8
+#if !defined(ESP_PLATFORM)
 static uint8_t resp_buffer[2][PCAN_USB_DATA_BUFFER_SIZE];
+#endif
 static uint8_t drv_load_packet[16];
 
 static uint16_t data_pos = 0;
 static uint8_t data_buffer[PCAN_USB_DATA_BUFFER_SIZE];
 
+/* diagnostic counters */
+static volatile uint32_t g_rx_frame_cnt = 0;
+static volatile uint32_t g_tx_ok_cnt = 0;
+
 void *pcan_data_alloc_buffer(uint16_t type, uint16_t size) {
   uint16_t aligned_size = (size + (4 - 1)) & (~(4 - 1));
-  if (sizeof(data_buffer) < (aligned_size + data_pos + 4))
+  if (sizeof(data_buffer) < (aligned_size + data_pos + PCAN_USB_FLUSH_TRAILER_SIZE))
     return (void *)0;
   struct ucan_msg *pmsg = (void *)&data_buffer[data_pos];
 
@@ -92,6 +107,7 @@ void *pcan_data_alloc_buffer(uint16_t type, uint16_t size) {
   return pmsg;
 }
 
+#if !defined(ESP_PLATFORM)
 static struct t_m2h_fsm resp_fsm[2] = {
     [0] =
         {
@@ -106,6 +122,7 @@ static struct t_m2h_fsm resp_fsm[2] = {
         .pdbuf = resp_buffer[1],
         .dbsize = PCAN_USB_DATA_BUFFER_SIZE,
     }};
+#endif
 
 /* low level requests */
 #if defined(ESP_PLATFORM)
@@ -132,7 +149,11 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
 #endif
           .fw_version = {3, 2, 0},
           .dev_id[0] = 0xFFFFFFFF,
+#if defined(ESP_PLATFORM)
+          .dev_id[1] = 0,             /* single channel on ESP32-S3 */
+#else
           .dev_id[1] = 0xFFFFFFFF,
+#endif
           .ser_no = 0xFFFFFFFF,
           .flags = 0x00000000,
           .unk = {0x01, /* cmd_out */
@@ -144,7 +165,11 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
       /* windows/linux has different struct size */
       fwi.size_of = req->wLength;
       fwi.dev_id[0] = pcan_device.can[0].channel_nr;
+#if CAN_CHANNEL_MAX > 1
       fwi.dev_id[1] = pcan_device.can[1].channel_nr;
+#else
+      fwi.dev_id[1] = 0;
+#endif
       fwi.ser_no = pcan_device.device_nr;
 #if defined(ESP_PLATFORM)
       return tud_control_xfer(0, req, (void *)&fwi, fwi.size_of);
@@ -153,7 +178,7 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
 #endif
     }
     default:
-      assert(0);
+      printf("PCAN-FD: Unknown vendor info request 0x%04X\r\n", req->wValue);
       break;
     }
     break;
@@ -170,7 +195,7 @@ uint8_t pcan_protocol_device_setup(USBD_HandleTypeDef *pdev,
 #endif
     } break;
     default:
-      assert(0);
+      printf("PCAN-FD: Unknown vendor FKT request 0x%04X\r\n", req->wValue);
       break;
     }
     break;
@@ -198,11 +223,15 @@ void pcan_ep0_receive(void) {
     pcan_flush_ep(PCAN_USB_EP_CMDIN);
     pcan_device.can_drv_loaded = drv_load_packet[1];
     pcan_led_set_mode(LED_STAT, LED_MODE_BLINK_SLOW, 0xFFFFFFFF);
-  } else
+    printf("Linux driver loaded CAN interface!\r\n");
+  } else {
     pcan_device.lin_drv_loaded = drv_load_packet[1];
+    printf("Linux driver loaded LIN interface!\r\n");
+  }
 }
 
 int pcan_protocol_rx_frame(uint8_t channel, struct t_can_msg *pmsg) {
+  g_rx_frame_cnt++;
   static const uint8_t pcan_fd_len2dlc[] = {
       0,  1,  2,  3,  4,  5,  6,  7,  8, /* 0 - 8 */
       9,  9,  9,  9,                     /* 9 - 12 */
@@ -217,8 +246,9 @@ int pcan_protocol_rx_frame(uint8_t channel, struct t_can_msg *pmsg) {
   };
   struct ucan_rx_msg *pcan_msg = pcan_data_alloc_buffer(
       UCAN_MSG_CAN_RX, sizeof(struct ucan_rx_msg) + pmsg->size);
-  if (!pcan_msg)
+  if (!pcan_msg) {
     return -1;
+  }
 
   if (!(pmsg->flags & MSG_FLAG_ECHO)) {
     uint32_t nqt = pcan_device.can[channel].nominal_qt;
@@ -293,20 +323,18 @@ int pcan_protocol_tx_frame(struct ucan_tx_msg *pmsg) {
 
   msg.id = pmsg->can_id;
 
-  /* CAN-FD frame */
+  /* ESP32-S3 TWAI is Classic CAN only. Accept classic frames and CAN-FD
+   * records that fit on a classic CAN frame, but never truncate FD payloads.
+   */
   if (pmsg->flags & UCAN_MSG_EXT_DATA_LEN) {
-    msg.flags |= MSG_FLAG_FD;
-    if (pmsg->flags & UCAN_MSG_BITRATE_SWITCH)
-      msg.flags |= MSG_FLAG_BRS;
-    if (pmsg->flags & UCAN_MSG_ERROR_STATE_IND)
-      msg.flags |= MSG_FLAG_ESI;
-
     msg.size = pcan_fd_dlc2len[UCAN_MSG_DLC(pmsg)];
+    if (msg.size > 8)
+      return -1;
   } else {
     msg.size = UCAN_MSG_DLC(pmsg);
   }
 
-  if (msg.size > sizeof(msg.data))
+  if (msg.size > 8 || msg.size > sizeof(msg.data))
     return -1;
 
   /* TODO: process UCAN_MSG_SINGLE_SHOT, UCAN_MSG_HW_SRR,
@@ -324,11 +352,7 @@ int pcan_protocol_tx_frame(struct ucan_tx_msg *pmsg) {
 
   msg.timestamp = pcan_timestamp_us();
 
-  if (pcan_can_write(channel, &msg) < 0) {
-    /* TODO: tx queue overflow ? */
-    ;
-  }
-  return 0;
+  return pcan_can_write(channel, &msg);
 }
 
 static int pcan_protocol_send_status(uint8_t channel, uint8_t status) {
@@ -379,7 +403,6 @@ static void pcan_protocol_process_cmd(uint8_t *ptr, uint16_t size) {
   struct ucan_command *pcmd = (void *)ptr;
 
   while (size >= sizeof(struct ucan_command)) {
-    // printf("command size =%d\r\n", size);
     switch (UCAN_CMD_OPCODE(pcmd)) {
     case UCAN_CMD_NOP:
       break;
@@ -387,6 +410,8 @@ static void pcan_protocol_process_cmd(uint8_t *ptr, uint16_t size) {
       if (UCAN_CMD_CHANNEL(pcmd) < CAN_CHANNEL_MAX) {
         pcan_can_set_bus_active(UCAN_CMD_CHANNEL(pcmd), 0);
         pcan_device.can[UCAN_CMD_CHANNEL(pcmd)].bus_active = 0;
+        /* Discard any buffered frames — link is going down */
+        data_pos = 0;
 
         /* update ISO mode only on inactive bus */
         uint8_t bus_iso_mode =
@@ -426,28 +451,11 @@ static void pcan_protocol_process_cmd(uint8_t *ptr, uint16_t size) {
         br.tseg1 = ptiming->tseg1 + 1;
         br.tseg2 = ptiming->tseg2 + 1;
         br.sjw = (ptiming->sjw_t & 0x0f) + 1;
-        (void)((ptiming->sjw_t & 0x80) != 0);
-        
-        // printf("from Slow FD can\r\n");
-        // printf("clock request from the PC=%d\r\n", pcan_device.can[UCAN_CMD_CHANNEL(pcmd)].can_clock);
-        // uint32_t clk = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_FDCAN);
-        // printf("FDCAN clock = %lu Hz\r\n", (unsigned long)clk);
-        
-
-        // printf("UCAN_CMD_TIMING_SLOW received:\r\n");
-        // printf("  channel      = %u\r\n", UCAN_CMD_CHANNEL(pcmd));
-        // printf("  raw brp      = %u\r\n", ptiming->brp);
-        // printf("  raw tseg1    = %u\r\n", ptiming->tseg1);
-        // printf("  raw tseg2    = %u\r\n", ptiming->tseg2);
-        // printf("  raw sjw_t    = 0x%02X\r\n", ptiming->sjw_t);
-        // printf("  triple_samp  = %u\r\n", (ptiming->sjw_t & 0x80) ? 1 : 0);
-
-        // printf("Decoded CAN timing:\r\n");
-        // printf("  brp          = %u\r\n", br.brp);
-        // printf("  tseg1        = %u\r\n", br.tseg1);
-        // printf("  tseg2        = %u\r\n", br.tseg2);
-        // printf("  sjw          = %u\r\n", br.sjw);
         pcan_protocol_set_baudrate(UCAN_CMD_CHANNEL(pcmd), &br, 0);
+        /* If bus was already active before reset, re-activate it now */
+        if (pcan_device.can[UCAN_CMD_CHANNEL(pcmd)].bus_active) {
+            pcan_can_set_bus_active(UCAN_CMD_CHANNEL(pcmd), 1);
+        }
       }
       break;
     /* only for CAN-FD */
@@ -554,7 +562,7 @@ static void pcan_protocol_process_cmd(uint8_t *ptr, uint16_t size) {
     case UCAN_CMD_END_OF_COLLECTION:
       return;
     default:
-      assert(0);
+      printf("PCAN-FD: Unknown command opcode 0x%02X\r\n", UCAN_CMD_OPCODE(pcmd));
       break;
     }
 
@@ -596,7 +604,7 @@ void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
     case 0xffff:
       return;
     default:
-      assert(0);
+      printf("PCAN-FD: Unknown message type 0x%04X\r\n", pmsg->type);
       break;
     }
   }
@@ -605,14 +613,17 @@ void pcan_protocol_process_data(uint8_t ep, uint8_t *ptr, uint16_t size) {
 void pcan_protocol_init(void) {
   pcan_can_init_ex(CAN_BUS_1, 250000);
   pcan_can_set_filter_mask(CAN_BUS_1, 0, 0, 0, 0);
+#if !defined(ESP_PLATFORM)
   pcan_can_init_ex(CAN_BUS_2, 250000);
   pcan_can_set_filter_mask(CAN_BUS_2, 0, 0, 0, 0);
+#endif
 
   pcan_can_install_rx_callback(CAN_BUS_1, pcan_protocol_rx_frame);
-  pcan_can_install_rx_callback(CAN_BUS_2, pcan_protocol_rx_frame);
-
   pcan_can_install_tx_callback(CAN_BUS_1, pcan_protocol_tx_frame_cb);
+#if !defined(ESP_PLATFORM)
+  pcan_can_install_rx_callback(CAN_BUS_2, pcan_protocol_rx_frame);
   pcan_can_install_tx_callback(CAN_BUS_2, pcan_protocol_tx_frame_cb);
+#endif
 }
 
 void pcan_protocol_poll(void) {
@@ -621,24 +632,40 @@ void pcan_protocol_poll(void) {
 
   pcan_can_poll();
 
+  /* 1-second diagnostic: show RX/TX health */
+  {
+    static uint32_t last_diag_ms = 0;
+    if (ts_ms - last_diag_ms >= 1000u) {
+      last_diag_ms = ts_ms;
+      // Heartbeat counters can be maintained without UART overhead
+    }
+  }
+
   /* flush data */
   if (data_pos > 0) {
     /* endmark */
     *(uint32_t *)&data_buffer[data_pos] = 0x00000000;
     uint16_t flush_size = data_pos + 4;
-    /* align to 64 */
-    flush_size += (64 - 1);
-    flush_size &= ~(64 - 1);
+    /* Ensure flush_size is NEVER a multiple of 64 to force a short packet and complete the URB immediately */
+    if (flush_size % PCAN_USB_MAX_PACKET_SIZE == 0) {
+        *(uint32_t *)&data_buffer[flush_size] = 0x00000000;
+        flush_size += 4;
+    }
 #if defined(ESP_PLATFORM)
     extern bool pcan_usb_transmit(uint8_t ep, uint8_t *buf, uint16_t size);
     int res = pcan_usb_transmit(PCAN_USB_EP_MSGIN_CH1, data_buffer, flush_size);
+    if (res) {
+      g_tx_ok_cnt++;
+      data_pos = 0;
+      pcan_device.last_time_flush = ts_us;
+    }
 #else
     int res = pcan_flush_data(&resp_fsm[1], data_buffer, flush_size);
-#endif
     if (res) {
       data_pos = 0;
       pcan_device.last_time_flush = ts_us;
     }
+#endif
   }
 
   /* timesync part */

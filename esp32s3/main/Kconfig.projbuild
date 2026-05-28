@@ -12,21 +12,39 @@ menu "PCAN Firmware Configuration"
         help
             GPIO pin number for CAN RX (TWAI).
 
+    config PCAN_USB_LINK_LED_PIN
+        int "USB link/status LED GPIO Pin"
+        default 8
+        help
+            GPIO pin for the USB/PEAK driver link status LED. Set to -1 to disable.
+
+    config PCAN_CAN_ACTIVITY_LED_PIN
+        int "CAN activity LED GPIO Pin"
+        default 9
+        help
+            GPIO pin for CAN RX/TX activity LED. Set to -1 to disable.
+
+    config PCAN_LED_ACTIVE_LOW
+        bool "LEDs are active low"
+        default n
+        help
+            Enable this if the LED turns on when the GPIO output is low.
+
     config PCAN_MANUFACTURER
         string "USB Manufacturer String"
-        default "PEAK-System Technik GmbH"
+        default "PEAK-System"
         help
             The manufacturer string descriptor for the USB device.
 
     config PCAN_DEVICE_NAME
         string "USB Device Name (Product String)"
-        default "PCAN-USB Pro FD"
+        default "PCAN-USB FD"
         help
             The product string descriptor for the USB device.
 
     config PCAN_SERIAL_NUMBER
         string "USB Serial Number"
-        default "12345678"
+        default ""
         help
             The serial number string descriptor for the USB device.
 
@@ -38,8 +56,8 @@ menu "PCAN Firmware Configuration"
 
     config PCAN_USB_PID
         hex "USB Product ID (PID)"
-        default 0x0011
+        default 0x0012
         help
-            The Product ID (PID) for the USB device. Default is 0x0011 (PCAN-USB Pro FD).
+            The Product ID (PID) for the USB device. Default is 0x0012 (PCAN-USB FD, single CAN channel).
 
 endmenu

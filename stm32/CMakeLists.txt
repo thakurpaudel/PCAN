@@ -56,7 +56,9 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 # CAN Mode Selection (CLASSIC or FD)
-option(PCAN_CAN_FD_MODE "Enable CAN-FD mode (vs Classic CAN)" OFF)
+# Default to PCAN-USB Pro FD so the USB descriptor, endpoint layout and
+# protocol source match what PEAK drivers/PCAN-View expect.
+option(PCAN_CAN_FD_MODE "Enable CAN-FD mode (vs Classic CAN)" ON)
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
