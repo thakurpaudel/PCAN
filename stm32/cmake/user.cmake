@@ -7,9 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
-    -fno-exceptions
-    -fno-rtti
-    -fno-threadsafe-statics
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
