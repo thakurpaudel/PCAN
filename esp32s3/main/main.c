@@ -25,10 +25,10 @@
 
 // ESP32-S3 is USB full-speed. PEAK sends full-speed OUT transfers as 64-byte
 // chunks, so each queued OUT transfer must be one max-packet chunk.
-static uint8_t ep_cmd_out_buf[64] __attribute__((aligned(4)));
-static uint8_t ep_msg1_out_buf[64] __attribute__((aligned(4)));
+static uint8_t ep_cmd_out_buf[512] __attribute__((aligned(4)));
+static uint8_t ep_msg1_out_buf[512] __attribute__((aligned(4)));
 #if PCAN_NUM_CHANNELS > 1
-static uint8_t ep_msg2_out_buf[64] __attribute__((aligned(4)));
+static uint8_t ep_msg2_out_buf[512] __attribute__((aligned(4)));
 #endif
 
 // Buffer for IN endpoints (transmit) to prevent corruption while DMA is active
@@ -53,6 +53,7 @@ bool pcan_usb_transmit(uint8_t ep, uint8_t *buf, uint16_t size)
 
 int pcan_flush_ep(uint8_t ep)
 {
+    (void)ep;
     return 1;
 }
 

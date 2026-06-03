@@ -4,8 +4,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_timer.h"
+#include "esp_err.h"
 #include <string.h>
 #include <stdio.h>
+#include "esp_log.h"
+
+static const char *TAG = "PCAN_CAN";
 
 /* ESP32-S3 has only one TWAI peripheral — override CAN_BUS_TOTAL */
 #ifndef CAN_BUS_TOTAL
@@ -136,19 +140,32 @@ void pcan_can_set_bus_active(int bus, uint16_t mode) {
     } else {
         // NORMAL_MODE: Install and start the TWAI driver.
         if (!p_dev->is_installed) {
-            printf("TWAI Install config: brp=%lu, tseg1=%d, tseg2=%d, sjw=%d\n", (unsigned long)t_config.brp, t_config.tseg_1, t_config.tseg_2, t_config.sjw);
-            if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
-                if (twai_start() == ESP_OK) {
+            ESP_LOGI(TAG, "=== TWAI INSTALL ==================================");
+            ESP_LOGI(TAG, "  GPIO: TX=%d  RX=%d", TX_GPIO_NUM, RX_GPIO_NUM);
+            ESP_LOGI(TAG, "  Mode: %s",
+                     g_config.mode == TWAI_MODE_NORMAL      ? "NORMAL" :
+                     g_config.mode == TWAI_MODE_LISTEN_ONLY ? "LISTEN_ONLY" : "LOOPBACK");
+            ESP_LOGI(TAG, "  Timing: brp=%lu tseg1=%d tseg2=%d sjw=%d",
+                     (unsigned long)t_config.brp, t_config.tseg_1, t_config.tseg_2, t_config.sjw);
+            ESP_LOGI(TAG, "  TxQLen=%d RxQLen=%d", g_config.tx_queue_len, g_config.rx_queue_len);
+            ESP_LOGI(TAG, "=================================================");
+
+            esp_err_t install_err = twai_driver_install(&g_config, &t_config, &f_config);
+            if (install_err == ESP_OK) {
+                esp_err_t start_err = twai_start();
+                if (start_err == ESP_OK) {
                     p_dev->is_installed = true;
-                    printf("TWAI installed and started (NORMAL_MODE)\n");
+                    ESP_LOGI(TAG, "TWAI installed and started (NORMAL_MODE)");
+                    ESP_LOGI(TAG, "Waiting for CAN frames on GPIO%d (RX)...", RX_GPIO_NUM);
                 } else {
-                    printf("TWAI start FAILED!\n");
+                    ESP_LOGE(TAG, "TWAI start FAILED: %s", esp_err_to_name(start_err));
+                    twai_driver_uninstall();
                 }
             } else {
-                printf("TWAI install FAILED!\n");
+                ESP_LOGE(TAG, "TWAI install FAILED: %s", esp_err_to_name(install_err));
             }
         } else {
-            printf("TWAI already active (NORMAL_MODE)\n");
+            ESP_LOGW(TAG, "TWAI already active (NORMAL_MODE)");
         }
     }
 }
@@ -238,57 +255,127 @@ static void pcan_can_flush_tx(int bus) {
             t_msg.identifier = p_msg->id & 0x7FF;
             t_msg.extd = 0;
         }
-        
+
         t_msg.rtr = (p_msg->flags & MSG_FLAG_RTR) ? 1 : 0;
         t_msg.data_length_code = p_msg->size > 8 ? 8 : p_msg->size;
         if (!t_msg.rtr) {
             memcpy(t_msg.data, p_msg->data, t_msg.data_length_code);
         }
 
-        if (twai_transmit(&t_msg, 0) == ESP_OK) {
+        esp_err_t tx_err = twai_transmit(&t_msg, 0);
+        if (tx_err == ESP_OK) {
             if (p_dev->tx_isr) {
                 p_dev->tx_isr(bus, p_msg);
             }
             p_dev->tx_msgs++;
             p_dev->tx_tail = (p_dev->tx_tail + 1) & (CAN_TX_FIFO_SIZE - 1);
         } else {
-            // TX queue full or error, wait for next poll
             p_dev->tx_errs++;
             break;
         }
     }
 }
 
+/* Human-readable TWAI state string */
+static const char *twai_state_str(twai_state_t s) {
+    switch (s) {
+        case TWAI_STATE_STOPPED:     return "STOPPED";
+        case TWAI_STATE_RUNNING:     return "RUNNING";
+        case TWAI_STATE_BUS_OFF:     return "BUS_OFF";
+        case TWAI_STATE_RECOVERING:  return "RECOVERING";
+        default:                     return "UNKNOWN";
+    }
+}
+
 void pcan_can_poll(void) {
     static uint32_t poll_count = 0;
+    static uint32_t last_tx_failed[CAN_BUS_TOTAL];
+    static uint32_t last_rx_missed[CAN_BUS_TOTAL];
+    /* tracks whether we've already printed the error-passive banner */
+    static bool err_passive_reported[CAN_BUS_TOTAL];
     poll_count++;
+
     for (int bus = 0; bus < CAN_BUS_TOTAL; bus++) {
         if (!can_dev_array[bus].is_installed) {
+            /* print once per 65536 polls so the log doesn't flood */
             if ((poll_count & 0xFFFFu) == 1)
-                printf("TWAI bus%d NOT installed (poll#%lu)\n", bus, (unsigned long)poll_count);
+                ESP_LOGW(TAG, "bus%d NOT installed (poll#%lu) — waiting for host to activate CAN",
+                         bus, (unsigned long)poll_count);
             continue;
         }
-        
-        if ((poll_count & 0xFFFu) == 0) {
-            twai_status_info_t status;
-            static uint32_t last_tx_failed[CAN_BUS_TOTAL];
-            static uint32_t last_rx_missed[CAN_BUS_TOTAL];
-            twai_get_status_info(&status);
-            can_dev_array[bus].tx_errs += status.tx_failed_count - last_tx_failed[bus];
-            can_dev_array[bus].rx_ovfs += status.rx_missed_count - last_rx_missed[bus];
-            last_tx_failed[bus] = status.tx_failed_count;
-            last_rx_missed[bus] = status.rx_missed_count;
+
+        /* ---- Periodic TWAI status dump — every 65536 polls (~30 s) ---- */
+        if ((poll_count & 0xFFFFu) == 0) {
+            twai_status_info_t st;
+            if (twai_get_status_info(&st) == ESP_OK) {
+                /* stats accounting only — no log print in the hot path */
+                uint32_t new_tx_fail = st.tx_failed_count - last_tx_failed[bus];
+                uint32_t new_rx_miss = st.rx_missed_count - last_rx_missed[bus];
+                can_dev_array[bus].tx_errs += new_tx_fail;
+                can_dev_array[bus].rx_ovfs += new_rx_miss;
+                last_tx_failed[bus] = st.tx_failed_count;
+                last_rx_missed[bus] = st.rx_missed_count;
+
+                /*
+                 * tx_err >= 128  →  ERROR-PASSIVE
+                 * The TWAI controller sent frames but no other node sent an ACK.
+                 * Print the diagnostic banner ONCE; clear the flag when tx_err
+                 * drops back below 128 (i.e. the bus recovered).
+                 */
+                if (st.tx_error_counter >= 128) {
+                    if (!err_passive_reported[bus]) {
+                        err_passive_reported[bus] = true;
+                        ESP_LOGE(TAG, "================================================");
+                        ESP_LOGE(TAG, "[bus%d] ERROR-PASSIVE: tx_err=%lu — no ACK from bus",
+                                 bus, (unsigned long)st.tx_error_counter);
+                        ESP_LOGE(TAG, "  GPIO  TX=%d  RX=%d", TX_GPIO_NUM, RX_GPIO_NUM);
+                        ESP_LOGE(TAG, "  Check:");
+                        ESP_LOGE(TAG, "  [1] Is a CAN analyzer / other node connected?");
+                        ESP_LOGE(TAG, "  [2] Is the CAN transceiver powered? (SN65HVD230, etc.)");
+                        ESP_LOGE(TAG, "  [3] Are TX(%d) and RX(%d) wired correctly?",
+                                 TX_GPIO_NUM, RX_GPIO_NUM);
+                        ESP_LOGE(TAG, "  [4] Are 120-ohm termination resistors fitted?");
+                        ESP_LOGE(TAG, "  [5] Does the other node use the same bitrate?");
+                        ESP_LOGE(TAG, "  TX frames will be dropped until the bus recovers.");
+                        ESP_LOGE(TAG, "================================================");
+                    }
+
+                    /* Drop all pending SW-FIFO TX frames to unblock the queue.
+                     * There is no point queuing more frames when no one ACKs. */
+                    struct t_can_dev *p_dev = &can_dev_array[bus];
+                    if (p_dev->tx_head != p_dev->tx_tail) {
+                        ESP_LOGW(TAG, "[bus%d] Dropping %lu stuck TX frame(s) (error-passive)",
+                                 bus,
+                                 (unsigned long)((p_dev->tx_head - p_dev->tx_tail)
+                                                 & (CAN_TX_FIFO_SIZE - 1)));
+                        p_dev->tx_tail = p_dev->tx_head; /* flush SW FIFO */
+                    }
+                } else {
+                    /* Bus recovered — allow the banner to print again if needed */
+                    if (err_passive_reported[bus]) {
+                        ESP_LOGI(TAG, "[bus%d] Bus recovered: tx_err back to %lu",
+                                 bus, (unsigned long)st.tx_error_counter);
+                        err_passive_reported[bus] = false;
+                    }
+                }
+
+                if (st.state == TWAI_STATE_BUS_OFF) {
+                    ESP_LOGE(TAG, "[bus%d] BUS-OFF detected — initiating recovery", bus);
+                    twai_initiate_recovery();
+                }
+            }
         }
 
+        /* ---- RX: drain all pending frames ---- */
         twai_message_t t_msg;
         while (pcan_protocol_can_rx_ready() &&
                twai_receive(&t_msg, 0) == ESP_OK) {
             struct t_can_msg p_msg = {0};
-            p_msg.id = t_msg.identifier;
-            p_msg.flags = 0;
+            p_msg.id        = t_msg.identifier;
+            p_msg.flags     = 0;
             if (t_msg.extd) p_msg.flags |= MSG_FLAG_EXT;
             if (t_msg.rtr)  p_msg.flags |= MSG_FLAG_RTR;
-            p_msg.size = t_msg.data_length_code;
+            p_msg.size      = t_msg.data_length_code;
             p_msg.timestamp = (uint32_t)esp_timer_get_time();
 
             if (!t_msg.rtr)
@@ -296,12 +383,13 @@ void pcan_can_poll(void) {
 
             can_dev_array[bus].rx_msgs++;
 
-            if (can_dev_array[bus].rx_isr && can_dev_array[bus].rx_isr(bus, &p_msg) < 0)
+            if (can_dev_array[bus].rx_isr &&
+                can_dev_array[bus].rx_isr(bus, &p_msg) < 0)
                 can_dev_array[bus].rx_ovfs++;
-
         }
-        
-        // 2. Process TX
-        pcan_can_flush_tx(bus);
+
+        /* ---- TX: flush SW FIFO → TWAI HW (skip if error-passive) ---- */
+        if (!err_passive_reported[bus])
+            pcan_can_flush_tx(bus);
     }
 }
