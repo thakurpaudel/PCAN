@@ -1,3 +1,6 @@
+# Target
+CONFIG_IDF_TARGET="esp32s3"
+
 # Enable USB OTG
 CONFIG_USB_OTG_SUPPORTED=y
 

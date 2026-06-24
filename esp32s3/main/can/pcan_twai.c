@@ -123,7 +123,17 @@ void pcan_can_set_silent(int bus, uint8_t silent_mode) {
 }
 
 void pcan_can_set_iso_mode(int bus, uint8_t iso_mode) { /* Not supported */ }
-void pcan_can_set_loopback(int bus, uint8_t loopback) { /* Not supported without re-init */ }
+void pcan_can_set_loopback(int bus, uint8_t loopback) {
+    if (bus != CAN_BUS_1) return;
+    printf("Setting LOOPBACK MODE: %d\n", loopback);
+    g_config.mode = loopback ? TWAI_MODE_NO_ACK : TWAI_MODE_NORMAL;
+    if (can_dev_array[bus].is_installed) {
+        twai_stop();
+        twai_driver_uninstall();
+        twai_driver_install(&g_config, &t_config, &f_config);
+        twai_start();
+    }
+}
 void pcan_can_set_bus_active(int bus, uint16_t mode) {
     if (bus != CAN_BUS_1) return;
     struct t_can_dev *p_dev = &can_dev_array[bus];

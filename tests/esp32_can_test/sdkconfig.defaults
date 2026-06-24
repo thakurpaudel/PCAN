@@ -1,0 +1,3 @@
+
+# FreeRTOS config for faster response
+CONFIG_FREERTOS_HZ=1000

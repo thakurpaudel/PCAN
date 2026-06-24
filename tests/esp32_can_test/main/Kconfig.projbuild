@@ -1,0 +1,39 @@
+menu "ESP32 CAN Test Configuration"
+
+    config TEST_CAN_TX_PIN
+        int "CAN TX GPIO Pin"
+        default 14
+        help
+            GPIO pin number for CAN TX (TWAI).
+
+    config TEST_CAN_RX_PIN
+        int "CAN RX GPIO Pin"
+        default 13
+        help
+            GPIO pin number for CAN RX (TWAI).
+
+    config TEST_STATUS_LED_PIN
+        int "Status LED GPIO Pin"
+        default 17
+        help
+            GPIO pin number for the Status LED. Set to -1 to disable.
+
+    config TEST_CAN_BITRATE_K
+        int "CAN Bitrate (kbps)"
+        default 250
+        help
+            CAN bitrate in kbps (e.g. 125, 250, 500, 1000).
+
+    config TEST_CAN_TX_INTERVAL_MS
+        int "CAN Transmission Interval (ms)"
+        default 1000
+        help
+            How often to send a test CAN frame, in milliseconds.
+
+    config TEST_CAN_TX_MSG_ID
+        hex "CAN Test Message ID"
+        default 0x100
+        help
+            The arbitration ID of the sent test message.
+
+endmenu
